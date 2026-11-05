@@ -24,6 +24,7 @@ import sys
 import runpy
 import threading
 import shutil
+import subprocess
 import traceback
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
@@ -37,8 +38,10 @@ else:
     _FROZEN = False
 
 
-def ensure_runtime():
-    """把 scripts / templates 放到可写目录。"""
+def ensure_runtime(force=False):
+    """把 scripts / templates 放到可写目录。
+    force=True 时强制覆盖（首次或资源更新）；False 时若目标已存在且非空则
+    跳过拷贝，避免 GUI 启动的扫描子进程每次都重复复制一遍。"""
     if not _FROZEN:
         return _SRC              # 开发模式：项目目录本身可写，直接用
     base = os.path.dirname(sys.executable)   # exe 所在目录，可写
@@ -47,10 +50,33 @@ def ensure_runtime():
     for sub in ('scripts', 'templates'):
         src = os.path.join(_SRC, sub)
         dst = os.path.join(rt, sub)
-        if os.path.isdir(src):
-            if os.path.isdir(dst):
+        if not os.path.isdir(src):
+            continue
+        if os.path.isdir(dst) and os.listdir(dst) and not force:
+            continue             # 已存在，跳过拷贝
+        if os.path.isdir(dst):
+            try:
                 shutil.rmtree(dst)
-            shutil.copytree(src, dst)
+            except Exception:
+                pass             # 被占用等清不掉：下面按文件覆盖补齐
+        try:
+            shutil.copytree(src, dst, dirs_exist_ok=True)
+        except Exception:
+            # 个别文件被占用：逐文件复制，忽略失败项，保证其余资源刷新到位
+            for root, _dirs, files in os.walk(src):
+                rel = os.path.relpath(root, src)
+                ddst = os.path.join(dst, rel)
+                try:
+                    os.makedirs(ddst, exist_ok=True)
+                except Exception:
+                    pass
+                for f in files:
+                    s = os.path.join(root, f)
+                    d = os.path.join(ddst, f)
+                    try:
+                        shutil.copy2(s, d)
+                    except Exception:
+                        pass
     return rt
 
 
@@ -63,6 +89,13 @@ except Exception:
 
 CN_FONT = ("Microsoft YaHei", 10)
 CN_FONT_B = ("Microsoft YaHei", 10, "bold")
+
+# 多选：GUI 中选中的待扫描路径
+SELECTED = []
+# 当前扫描子进程（subprocess.Popen），供「停止」按钮硬终止
+_CURRENT_PROC = None
+# 子进程无控制台标志（窗口化的 exe 本身不会弹黑窗，加了更稳妥）
+_CREATE_NO_WINDOW = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
 
 # ===================== stdout 重定向到文本框 =====================
 class TxtWriter:
@@ -128,19 +161,100 @@ def run_in_thread(fn, *a):
 
 
 # ===================== 具体功能 =====================
-def do_scan(folder):
+def list_drives():
+    """列出本机可用磁盘（Windows），返回 [(盘符, 总GB, 可用GB), ...]。"""
+    import string
+    import shutil
+    res = []
+    for c in string.ascii_uppercase:
+        d = '%s:\\' % c
+        if not os.path.exists(d):
+            continue
+        try:
+            u = shutil.disk_usage(d)
+            res.append((d, u.total / 1024 ** 3, u.free / 1024 ** 3))
+        except Exception:
+            res.append((d, 0.0, 0.0))
+    return res
+
+
+def scan_via_subprocess(paths):
+    """用「子进程」跑扫描，这样「停止」按钮能真正终止它。
+    扫描成功（返回码 0）后，再在本进程内生成并打开报告；被停止/异常则不生成。"""
+    global _CURRENT_PROC
+    # 若已有任务在跑，先把它终止掉再开新的
+    old = _CURRENT_PROC
+    if old is not None and old.poll() is None:
+        try:
+            old.terminate()
+        except Exception:
+            pass
+        try:
+            old.wait(timeout=3)
+        except Exception:
+            pass
+
+    quoted = ';'.join(paths)
     _log('=' * 60)
-    _log('开始扫描：' + folder)
+    _log('开始扫描（多选）共 %d 个路径：' % len(paths))
+    for p in paths:
+        _log('   · ' + p)
     _log('（只读扫描，不会修改 / 移动 / 删除任何文件）')
     _log('=' * 60)
-    run_script('run_dedupe.py', [folder])
-    _log('-' * 60)
-    _log('生成 A/B/C 预览报告 …')
-    run_script('build_g_report.py', [])
-    _log('-' * 60)
-    _log('打开报告 …')
-    run_script('open_report.py', [])
-    _log('【完成】扫描与报告已结束。')
+
+    # 冻结（EXE）时 sys.executable 本身就是入口；开发模式需显式带上本脚本路径
+    entry = [sys.executable] if _FROZEN else [sys.executable, os.path.abspath(__file__)]
+    cmd = entry + ['--child', 'run_dedupe.py', '--paths', quoted]
+    try:
+        _CURRENT_PROC = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding='utf-8', errors='replace',
+            creationflags=_CREATE_NO_WINDOW if os.name == 'nt' else 0)
+    except Exception as e:
+        _log('【错误】启动扫描子进程失败：' + str(e))
+        return
+
+    def reader():
+        global _CURRENT_PROC
+        # 记录本 reader 归属的进程，避免新扫描启动时把它误当成新进程而清空
+        proc = _CURRENT_PROC
+        try:
+            for line in iter(proc.stdout.readline, ''):
+                if not line:
+                    break
+                sys.stdout.write(line)
+        except Exception:
+            pass
+        rc = proc.wait()
+        if rc == 0:
+            _log('-' * 60)
+            _log('扫描完成，正在生成 A/B/C 报告 …')
+            run_script('build_g_report.py', [])
+            run_script('open_report.py', [])
+            _log('【完成】扫描与报告已全部结束。')
+        else:
+            _log('-' * 60)
+            _log('【已停止 / 异常结束】（返回码 %s），本次未生成报告。' % rc)
+        if _CURRENT_PROC is proc:
+            _CURRENT_PROC = None
+
+    threading.Thread(target=reader, daemon=True).start()
+
+
+def stop_current():
+    """硬终止正在运行的扫描子进程（终止后不会生成报告）。"""
+    global _CURRENT_PROC
+    if _CURRENT_PROC is not None and _CURRENT_PROC.poll() is None:
+        _log('⛔ 收到停止指令，正在终止扫描进程 …')
+        try:
+            _CURRENT_PROC.terminate()
+        except Exception:
+            try:
+                _CURRENT_PROC.kill()
+            except Exception:
+                pass
+    else:
+        _log('当前没有正在运行的扫描任务。')
 
 
 def do_open_last():
@@ -201,7 +315,7 @@ def do_latest_find():
 # ===================== 界面 =====================
 def build_gui(root):
     root.title('照片查重工具  （只读扫描 · 一键报告 · 安全清理）')
-    root.geometry('760x560')
+    root.geometry('820x690')
     try:
         root.iconbitmap()
     except Exception:
@@ -228,13 +342,98 @@ def build_gui(root):
         b.pack(side='left', padx=5, pady=4)
         return b
 
-    # 第一行：扫描
-    row1 = ttk.LabelFrame(frm, text='① 扫描查重（只读，不删任何文件）', padding=8)
+    # 第一行：扫描（多选文件夹 / 磁盘）
+    row1 = ttk.LabelFrame(frm, text='① 扫描查重（只读，不删任何文件 · 可多选文件夹/磁盘）', padding=8)
     row1.pack(fill='x', padx=14, pady=4)
-    btn(row1, '扫描（选文件夹）',
-        lambda: run_in_thread(do_scan, filedialog.askdirectory(title='选择要扫描的文件夹 / 盘符')))
-    btn(row1, '快速扫 F 盘', lambda: run_in_thread(do_scan, 'F:\\'))
-    btn(row1, '快速扫 E 盘', lambda: run_in_thread(do_scan, 'E:\\'))
+
+    # —— 已选路径列表 ——
+    sel_frame = ttk.Frame(row1)
+    sel_frame.pack(fill='x', pady=(0, 6))
+    listbox = tk.Listbox(sel_frame, height=4, font=("Microsoft YaHei", 9),
+                         selectmode='extended', bg='#0f1419', fg='#d6e0ea')
+    lb_sb = ttk.Scrollbar(sel_frame, command=listbox.yview)
+    listbox.configure(yscrollcommand=lb_sb.set)
+    listbox.pack(side='left', fill='both', expand=True, padx=(0, 6))
+    lb_sb.pack(side='right', fill='y')
+
+    def refresh_listbox():
+        listbox.delete(0, 'end')
+        for p in SELECTED:
+            listbox.insert('end', p)
+
+    def add_folder():
+        p = filedialog.askdirectory(title='选择要扫描的文件夹')
+        if not p:
+            return
+        if p not in SELECTED:
+            SELECTED.append(p)
+            refresh_listbox()
+        else:
+            _log('已在列表里：' + p)
+
+    def remove_selected():
+        for i in reversed(list(listbox.curselection())):
+            del SELECTED[i]
+        refresh_listbox()
+
+    def clear_sel():
+        SELECTED.clear()
+        refresh_listbox()
+
+    def pick_drives():
+        drives = list_drives()
+        if not drives:
+            messagebox.showinfo('提示', '未检测到可用磁盘。')
+            return
+        top = tk.Toplevel(root)
+        top.title('选择要扫描的磁盘（可多选）')
+        top.geometry('420x%d' % (64 + len(drives) * 28 + 56))
+        top.transient(root)
+        vars = {}
+        tk.Label(top, text='勾选要扫描的磁盘（可多选）：',
+                 font=CN_FONT_B).pack(pady=(10, 4))
+        for d, tot, free in drives:
+            v = tk.BooleanVar()
+            vars[d] = v
+            tk.Checkbutton(top,
+                           text='%s   总 %.1f GB · 可用 %.1f GB' % (d, tot, free),
+                           variable=v, font=CN_FONT, anchor='w'
+                           ).pack(fill='x', padx=18, pady=2)
+        bf = ttk.Frame(top)
+        bf.pack(pady=12)
+
+        def ok():
+            for d, v in vars.items():
+                if v.get() and d not in SELECTED:
+                    SELECTED.append(d)
+            refresh_listbox()
+            top.destroy()
+
+        ttk.Button(bf, text='确定', command=ok, width=12).pack(side='left', padx=10)
+        ttk.Button(bf, text='取消', command=top.destroy, width=12).pack(side='left', padx=10)
+        top.grab_set()
+        top.wait_window(top)
+
+    # —— 选择按钮行 ——
+    sel_btn = ttk.Frame(row1)
+    sel_btn.pack(fill='x', pady=(0, 6))
+    btn(sel_btn, '添加文件夹', add_folder, w=14)
+    btn(sel_btn, '添加磁盘', pick_drives, w=14)
+    btn(sel_btn, '移除选中', remove_selected, w=14)
+    btn(sel_btn, '清空列表', clear_sel, w=14)
+
+    # —— 扫描控制按钮行 ——
+    scan_btn = ttk.Frame(row1)
+    scan_btn.pack(fill='x')
+
+    def start_scan():
+        if not SELECTED:
+            messagebox.showinfo('提示', '请先「添加文件夹」或「添加磁盘」，至少选一个路径。')
+            return
+        run_in_thread(scan_via_subprocess, list(SELECTED))
+
+    btn(scan_btn, '开始扫描', start_scan, w=14)
+    btn(scan_btn, '停止扫描', stop_current, w=14)
 
     # 第二行：报告
     row2 = ttk.LabelFrame(frm, text='② 报告', padding=8)
@@ -285,6 +484,27 @@ def main():
         print('scripts 下 .py 文件数 =', n)
         print('templates 存在 =', os.path.isdir(os.path.join(RUNTIME, 'templates')))
         return
+
+    # 子进程模式：GUI 以独立子进程方式调用本 exe 跑某个脚本（用于可终止的扫描）。
+    # 直接用 runpy 运行，异常 / sys.exit 会向上抛出，从而决定进程退出码：
+    #   0 = 扫描成功；非 0 = 出错，或被终止（terminate 让其非 0 退出）。
+    if '--child' in sys.argv:
+        idx = sys.argv.index('--child')
+        rest = sys.argv[idx + 1:]
+        if rest:
+            name = rest[0]
+            args = rest[1:]
+            script = os.path.join(SCRIPTS, name)
+            if not os.path.exists(script):
+                print('【错误】找不到脚本：' + script)
+                sys.exit(2)
+            sys.argv = [name] + list(args)
+            runpy.run_path(script, run_name='__main__')
+        return
+
+    # 每次启动强制刷新可写区的脚本/模板，保证更新 exe 后用到的是最新资源
+    # （扫描子进程仍走 force=False 跳过，避免每次扫描都重复拷贝）
+    ensure_runtime(force=True)
 
     root = tk.Tk()
     try:
