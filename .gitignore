@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# 运行态缓存（扫描/报告生成时产生，非源码）
+_last_*.txt
+_latest_list.txt
+_multi_paths.txt
+*.pkl
+
+# 生成的报告产物（运行时在扫描目录内生成，不属于仓库）
+照片查重报告/
+thumbs/
+*.csv
+
+# 系统
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
