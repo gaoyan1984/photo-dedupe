@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>C 类 · 确认真重复 · G盘查重</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:#f5f6f8;color:#1f2328;
+  font:14px/1.6 "Microsoft YaHei",system-ui,sans-serif}
+.wrap{max-width:1340px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:#656d76;font-size:13px;margin-bottom:12px}
+.nav a{color:#0969da;text-decoration:none;font-size:13px;margin-right:14px}
+.nav a:hover{text-decoration:underline}
+.bar{position:sticky;top:0;z-index:20;background:#fff;border:1px solid #d8dee4;
+  border-radius:10px;padding:10px 14px;margin-bottom:14px;
+  box-shadow:0 1px 8px rgba(0,0,0,.06)}
+.bar .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.btn{background:#eef1f4;border:1px solid #d0d7de;border-radius:6px;padding:5px 12px;
+  cursor:pointer;font-size:13px;user-select:none;white-space:nowrap}
+.btn:hover{background:#e3e7eb}
+.btn.pri{background:#0969da;color:#fff;border-color:#0969da}
+.btn.grn{background:#1f883d;color:#fff;border-color:#1f883d}
+.btn.gry{background:#6e7781;color:#fff;border-color:#6e7781}
+.stat{font-size:13px;color:#57606a}
+.stat b{color:#0969da;font-size:16px}
+.rowitem{display:flex;align-items:center;gap:12px;padding:8px 12px;
+  border:1px solid #e4e8ec;border-radius:8px;background:#fff;margin-bottom:6px;font-size:12.5px}
+.rowitem.sel{background:#fff5f5;border-color:#cf222e}
+.rowitem .one{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
+.rowitem .one img{width:72px;height:72px;object-fit:cover;border-radius:5px;
+  border:1px solid #d8dee4;cursor:pointer;background:#f0f2f4;display:block}
+.rowitem .one img:hover{border-color:#0969da}
+.rowitem .pair{display:flex;gap:10px;flex-shrink:0;align-items:flex-end}
+.rowitem .lb{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600}
+.rowitem .lb.k{background:#dafbe1;color:#1f8833}
+.rowitem .lb.d{background:#ffebe9;color:#cf222e}
+.rowitem .fn{font-size:10px;color:#656d76;max-width:72px;word-break:break-all;
+  line-height:1.25;max-height:26px;overflow:hidden;text-align:center}
+/* 完整路径单独一行：等宽字体 + 可点击复制。
+   以前只显示文件名和所在文件夹，用户想核对「保留/移出」时没有整条路径可用。 */
+.rowitem .fp{font-size:10px;color:#24292f;word-break:break-all;
+  font-family:Consolas,"Courier New",monospace;background:#f6f8fa;
+  border:1px solid #d0d7de;border-radius:4px;padding:1px 5px;cursor:pointer;
+  line-height:1.35;margin-bottom:2px}
+.rowitem .fp:hover{background:#fff8e6;border-color:#f0c36d}
+.rowitem .fp.k{border-color:#1f8833;background:#f0fff4}
+.rowitem .fp.d{border-color:#cf222e;background:#fffbe9}
+.rowitem .p{flex:1;word-break:break-all;line-height:1.5;min-width:0}
+.rowitem .p a{color:#0969da;text-decoration:none;font-size:11px}
+.rowitem .p a:hover{text-decoration:underline}
+.rowitem input{cursor:pointer;width:15px;height:15px;margin:0;flex-shrink:0}
+.pg{display:flex;gap:6px;align-items:center;justify-content:center;
+  margin:18px 0;flex-wrap:wrap}
+.pg button{border:1px solid #d0d7de;background:#fff;border-radius:6px;
+  padding:5px 11px;cursor:pointer;font-size:13px}
+.pg button.cur{background:#0969da;color:#fff;border-color:#0969da;font-weight:600}
+.pg button:disabled{opacity:.4;cursor:default}
+.big{background:#fff8c5;border-left:4px solid #d29922;padding:11px 14px;
+  border-radius:0 8px 8px 0;margin-bottom:12px;font-size:13px}
+.hint{background:#ddf4ff;border-left:4px solid #0969da;padding:11px 14px;
+  border-radius:0 8px 8px 0;margin-bottom:12px;font-size:13px}
+.load{text-align:center;padding:40px;color:#656d76;font-size:14px}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #d0d7de;
+  border-top-color:#0969da;border-radius:50%;animation:sp .7s linear infinite;
+  vertical-align:-3px;margin-right:7px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.mdl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:100;
+  align-items:center;justify-content:center;flex-direction:column}
+.mdl.show{display:flex}
+/* 坑：原图 5~25MB，直接 img.src 会黑屏十几秒看着像没反应。
+   缩略图先顶上，原图后台加载完淡入。 */
+.mdl .cmp{display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+.mdl .ci{display:flex;flex-direction:column;align-items:center;max-width:47vw}
+.mdl .clb{font-size:12px;font-weight:700;padding:2px 12px;border-radius:12px;margin-bottom:6px}
+.mdl .clb.k{background:#1f8833;color:#fff}
+.mdl .clb.d{background:#cf222e;color:#fff}
+/* 坑：占位图和原图都是绝对定位，谁都不撑开父容器，框子会塌成 0×0 一片空白。
+   必须给 .phbox 一个固定尺寸，两张图再 absolute 填满、contain 居中。 */
+.mdl .phbox{position:relative;width:min(46vw,660px);height:min(66vh,660px);
+  display:flex;align-items:center;justify-content:center}
+.mdl .phbox>img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;border:2px solid #444;border-radius:6px;background:#111}
+.mdl .ph{filter:blur(.6px);transition:opacity .18s}
+.mdl .fl{opacity:0;transition:opacity .18s}
+.mdl .ld{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  color:#ccc;font-size:12px;background:rgba(0,0,0,.6);padding:5px 12px;border-radius:20px;
+  white-space:nowrap}
+/* 放底部小条，不遮挡图片——原图加载失败时缩略图放大版仍要看得到 */
+.mdl .bad{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);
+  background:rgba(0,0,0,.82);border:1px solid #6e4b1a;color:#ffd479;
+  font-size:11.5px;padding:6px 12px;border-radius:8px;text-align:center;
+  line-height:1.55;max-width:42vw;white-space:normal}
+.mdl .bad a{color:#79c0ff}
+.mdl .fn{color:#ddd;font-size:12px;margin-top:7px;max-width:46vw;word-break:break-all;
+  text-align:center;line-height:1.5}
+.mdl .meta{color:#eee;font-size:13px;margin-top:12px;max-width:92vw;
+  word-break:break-all;text-align:center;line-height:1.6}
+.mdl .close{position:absolute;top:16px;right:22px;color:#fff;font-size:32px;cursor:pointer;line-height:1}
+.mdl .hintk{color:#999;font-size:12px;margin-top:8px}
+.mdl .macts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;justify-content:center}
+.mdl .macts .btn{background:#21262d;color:#e6edf3;border-color:#444}
+.mdl .macts .btn:hover{background:#30363d}
+.mdl .macts .btn.grn{background:#1f883d;border-color:#1f883d;color:#fff}
+.mdl .macts .btn.red{background:#cf222e;border-color:#cf222e;color:#fff}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>C 类 · 确认真重复</h1>
+<div class="sub" id="sub">加载中…</div>
+<div class="nav"><a href="index.html">返回总览</a><a href="a.html">A 类（同名）</a><a href="b.html">B 类（异名）</a></div>
+
+<div class="big"><b>脚本判定为确认重复的 <span id="cN">?</span> 条。</b>数量很少，逐条过一遍很快。左侧「保留」右侧「移出」并排确认。</div>
+<div class="hint">
+<b>点缩略图可放大并排对比</b>（先出模糊小图，原图随后变清晰），
+放大后可直接「确认是同一张 → 勾选移出」。
+全程只读，勾选只生成清单。
+</div>
+
+<div class="bar">
+  <div class="row">
+    <span class="btn grn" onclick="selPage(true)">勾选本页</span>
+    <span class="btn gry" onclick="selPage(false)">取消本页</span>
+    <span class="btn grn" onclick="selAll(true)">勾选全部</span>
+    <span class="btn gry" onclick="selAll(false)">取消全部</span>
+    <span class="btn" onclick="copyList()">复制路径</span>
+    <span class="btn" onclick="saveList()">导出清单 txt</span>
+    <label class="stat">每页
+      <select id="per" onchange="PER=+this.value;cur=0;draw()"
+        style="border:1px solid #d0d7de;border-radius:5px;padding:3px 6px">
+        <option value="50">50</option>
+        <option value="100" selected>100</option>
+        <option value="200">200</option>
+        <option value="500">500</option>
+      </select> 条
+    </label>
+    <span class="stat">已选 <b id="selN">0</b> 个</span>
+  </div>
+</div>
+
+<div id="list"><div class="load"><span class="spin"></span>正在加载…</div></div>
+<div class="pg" id="pg"></div>
+</div>
+
+<div class="mdl" id="mdl" onclick="if(event.target===this)closeM()">
+  <div class="close" onclick="closeM()">&times;</div>
+  <div class="cmp">
+    <div class="ci">
+      <div class="clb k">保留</div>
+      <div class="phbox">
+        <img class="ph" id="kPh" alt=""><img class="fl" id="kImg" alt="">
+        <div class="ld" id="kLd"><span class="spin"></span>加载原图…</div>
+        <div class="bad" id="kBad" style="display:none"></div>
+      </div>
+      <div class="fn" id="kFn"></div>
+    </div>
+    <div class="ci">
+      <div class="clb d">移出</div>
+      <div class="phbox">
+        <img class="ph" id="dPh" alt=""><img class="fl" id="dImg" alt="">
+        <div class="ld" id="dLd"><span class="spin"></span>加载原图…</div>
+        <div class="bad" id="dBad" style="display:none"></div>
+      </div>
+      <div class="fn" id="dFn"></div>
+    </div>
+  </div>
+  <div class="meta" id="mMeta"></div>
+  <div class="macts" id="mActs"></div>
+  <div class="hintk">← → 翻到上一组 / 下一组 · Esc 关闭</div>
+</div>
+
+<script>
+let DATA=[], PER=100, cur=0, last=0;
+let SEL=new Set();
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function thumbSrc(i){return 'v2_'+String(i).padStart(5,'0')+'.jpg';}
+function baseName(p){const i=Math.max(p.lastIndexOf('\\'),p.lastIndexOf('/'));return i>=0?p.slice(i+1):p;}
+function dirOf(p){const i=Math.max(p.lastIndexOf('\\'),p.lastIndexOf('/'));return i>0?p.slice(0,i):p;}
+function decodePath(l){
+  let s=l.replace(/^file:\/\/\//,'');
+  try{s=decodeURIComponent(s);}catch(e){
+    s=s.replace(/%([0-9A-Fa-f]{2})/g,(m,h)=>String.fromCharCode(parseInt(h,16)));}
+  return s.replace(/\//g,'\\');
+}
+/* 坑：file:// 下 fetch 读本地文件会被 CORS 拒绝（Failed to fetch），
+   必须用 <script src> 加载包成 window.XXX 的 js 数据文件。 */
+function loadData(varName, src){
+  return new Promise((res,rej)=>{
+    if(window[varName]!==undefined){ res(window[varName]); return; }
+    const s=document.createElement('script');
+    s.src=src;
+    s.onload=()=>{
+      if(window[varName]===undefined) rej(new Error(src+' 已加载但没有 '+varName));
+      else res(window[varName]);
+    };
+    s.onerror=()=>rej(new Error(src+' 加载失败，确认文件与本页在同一目录'));
+    document.head.appendChild(s);
+  });
+}
+async function init(){
+  DATA=await loadData('CLIST','g_c_list.js');
+  // 预览与导出统一按「所在文件夹」分组排序，二者顺序一致，方便核对
+  DATA.sort((x,y)=>{const dx=x[4],dy=y[4];if(dx!==dy)return dx.localeCompare(dy,'zh-Hans-CN');return decodePath(x[2]).localeCompare(decodePath(y[2]));});
+  let IDX=null;
+  try{ IDX=await loadData('IDX','g_index.js'); }catch(e){}
+  last=Math.max(0,Math.ceil(DATA.length/PER)-1);
+  document.getElementById('sub').textContent=DATA.length.toLocaleString()+' 条 · '
+    +(IDX&&IDX.c_mb_s?IDX.c_mb_s:'?')+' · 脚本判定确认';
+  var cn=document.getElementById('cN'); if(cn) cn.textContent=DATA.length.toLocaleString();
+  draw();
+}
+function draw(){
+  const lo=cur*PER, hi=Math.min(lo+PER,DATA.length);
+  let H='';
+  for(let i=lo;i<hi;i++){
+    const [kl,kn,dl,dn,dir,kt,dt]=DATA[i];
+    const p=decodePath(dl), s=SEL.has(p);
+    H+='<div class="rowitem'+(s?' sel':'')+'" id="rb'+i+'">'
+      +'<input type="checkbox"'+(s?' checked':'')+' onclick="tog('+i+')">'
+      +'<div class="pair">'
+      +'<div class="one"><span class="lb k">保留</span>'
+      +'<img loading="lazy" src="'+thumbSrc(kt)+'" alt="" title="点击放大对比" onerror="this.style.visibility=\'hidden\'" onclick="viewB('+i+')">'
+      +'<div class="fn">'+esc(kn)+'</div></div>'
+      +'<div class="one"><span class="lb d">移出</span>'
+      +'<img loading="lazy" src="'+thumbSrc(dt)+'" alt="" title="点击放大对比" onerror="this.style.visibility=\'hidden\'" onclick="viewB('+i+')">'
+      +'<div class="fn">'+esc(dn)+'</div></div></div>'
+      // 完整路径单独成行、可点击复制：绿色=保留正本，红色=待移出，核对时直接用
+      +'<div class="p"><div class="fp k" title="点击复制保留正本的完整路径" onclick="copyOne(this)">'+esc(decodePath(kl))+'</div>'
+      +'<div class="fp d" title="点击复制移出文件的完整路径" onclick="copyOne(this)">'+esc(p)+'</div>'
+      +'<div>'+esc(dir)+'<br><a href="'+dl+'">打开移出的原图</a>'
+      +' · <a href="javascript:viewB('+i+')">放大对比</a></div></div></div>';
+  }
+  document.getElementById('list').innerHTML=H||'<div class="load">没有数据</div>';
+  drawPg(); updateSel();
+}
+function drawPg(){
+  let H='<button onclick="go(0)" '+(cur===0?'disabled':'')+'>« 首页</button>';
+  const push=p=>H+='<button class="'+(p===cur?'cur':'')+'" onclick="go('+p+')">'+(p+1)+'</button>';
+  // 以当前页为中心，最多显示 20 个页码按钮
+  let lo=Math.max(0, cur-9), hi=Math.min(last, cur+10);
+  if(hi-lo+1<20) lo=Math.max(0, hi-19);
+  if(hi-lo+1<20) hi=Math.min(last, lo+19);
+  if(lo>1) H+='<span style="padding:0 3px;color:#8b949e">…</span>';
+  for(let p=lo;p<=hi;p++) push(p);
+  if(hi<last-1) H+='<span style="padding:0 3px;color:#8b949e">…</span>';
+  H+='<button onclick="go(last)" '+(cur===last?'disabled':'')+'>末页 »</button>';
+  H+=' <input id="pgJump" type="number" min="1" max="'+(last+1)+'" placeholder="页码"'
+    +' style="width:58px;padding:3px 5px;border:1px solid #d0d7de;border-radius:5px;font-size:13px"'
+    +' onkeydown="if(event.key===\'Enter\')doJump()">';
+  H+=' <button onclick="doJump()">跳转</button>';
+  document.getElementById('pg').innerHTML=H;
+}
+function doJump(){
+  const el=document.getElementById('pgJump'); if(!el) return;
+  const v=parseInt(el.value,10);
+  if(!isNaN(v)&&v>=1&&v<=last+1){ go(v-1); el.value=''; }
+  else alert('请输入 1 到 '+(last+1)+' 之间的页码');
+}
+function go(p){if(p>=0&&p<=last){cur=p;window.scrollTo(0,0);draw();}}
+function tog(i){
+  const p=decodePath(DATA[i][2]);
+  if(SEL.has(p)) SEL.delete(p); else SEL.add(p);
+  const el=document.getElementById('rb'+i);
+  if(el){el.classList.toggle('sel',SEL.has(p));
+    const cb=el.querySelector('input'); if(cb) cb.checked=SEL.has(p);}
+  updateSel();
+}
+function selPage(on){
+  for(let i=cur*PER;i<Math.min(cur*PER+PER,DATA.length);i++){
+    const p=decodePath(DATA[i][2]);
+    if(on) SEL.add(p); else SEL.delete(p);
+    const el=document.getElementById('rb'+i);
+    if(el){el.classList.toggle('sel',on);const cb=el.querySelector('input');if(cb)cb.checked=on;}
+  }
+  updateSel();
+}
+function selAll(on){
+  DATA.forEach(r=>{const p=decodePath(r[2]);if(on)SEL.add(p);else SEL.delete(p);});
+  draw();
+}
+function updateSel(){document.getElementById('selN').textContent=SEL.size.toLocaleString();}
+function listText(){
+  const L=['C类确认真重复处理清单   生成时间: '+new Date().toLocaleString('zh-CN'),'='.repeat(60)];
+  // 建立「移出路径 → 配对的保留正本路径」映射，导出时成对输出，便于逐条核对
+  const keepOf={};
+  DATA.forEach(r=>{const k=decodePath(r[0]),d=decodePath(r[2]);if(k&&d)keepOf[d]=k;});
+  const by={};
+  [...SEL].sort().forEach(p=>{const d=dirOf(p);(by[d]=by[d]||[]).push(p);});
+  let n=0;
+  Object.keys(by).sort().forEach(d=>{L.push('');L.push('--- '+d+' ---');
+    by[d].forEach(p=>{
+      const k=keepOf[p];
+      if(k) L.push('[保留] '+k);
+      L.push('[移出] '+p);n++;
+    });});
+  L.push('');L.push('='.repeat(60));
+  L.push('合计 '+n+' 条');
+  L.push('警告: C 类为脚本判定的确认真重复。');
+  L.push('核对方法: 每条 [移出] 上方的 [保留] 是与它配对的保留正本完整路径，仅供核对；清理只动 [移出] 行。');
+  return L.join('\n');
+}
+/* 点击单条完整路径 → 复制（file:// 下 clipboard 常被拒，失败退 execCommand） */
+async function copyOne(el){
+  try{ await navigator.clipboard.writeText(el.textContent); }
+  catch(e){
+    const b=document.createElement('textarea');b.value=el.textContent;
+    document.body.appendChild(b);b.select();document.execCommand('copy');document.body.removeChild(b);
+  }
+  const old=el.title; el.title='已复制 ✓';
+  setTimeout(()=>{el.title=old;},900);
+}
+function copyList(){
+  if(!SEL.size){alert('还没有勾选');return;}
+  const t=listText();
+  navigator.clipboard.writeText(t).then(()=>alert('已复制 '+SEL.size+' 条'),()=>{
+    const b=document.createElement('textarea');b.value=t;document.body.appendChild(b);
+    b.select();document.execCommand('copy');document.body.removeChild(b);alert('已复制 '+SEL.size+' 条');});
+}
+function saveList(){
+  if(!SEL.size){alert('还没有勾选');return;}
+  const blob=new Blob(['\ufeff'+listText()],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);a.download='C类确认真重复处理清单.txt';a.click();
+}
+/* ---------- 放大对比预览 ----------
+   坑：原图 5~25MB，直接 img.src=原图 会黑屏十几秒，用户以为点了没反应。
+   缩略图先顶上（模糊但马上有画面），原图后台加载完淡入覆盖。
+   mTok 防止快速翻页时先加载完的旧图盖掉新图。 */
+let mIdx=-1, mTok=0;
+function viewB(i){ mIdx=i; showM(); }
+function mdlOpen(){return document.getElementById('mdl').classList.contains('show');}
+function mFill(side, thumb, src, tok){
+  const ph=document.getElementById(side+'Ph'), img=document.getElementById(side+'Img');
+  const ld=document.getElementById(side+'Ld'), bad=document.getElementById(side+'Bad');
+  bad.style.display='none'; ld.style.display='';
+  ld.innerHTML='<span class="spin"></span>加载原图…';
+  ph.src=thumbSrc(thumb); ph.style.opacity='1';
+  img.style.opacity='0'; img.removeAttribute('src');
+  const pre=new Image();
+  pre.onload=()=>{ if(tok!==mTok) return;
+    img.src=src; img.style.opacity='1'; ph.style.opacity='0'; ld.style.display='none'; };
+  pre.onerror=()=>{ if(tok!==mTok) return;
+    ld.style.display='none'; bad.style.display='';
+    bad.innerHTML='原图没能显示（格式不支持，或浏览器禁止网页读本地文件）'
+      +'<br><a href="'+src+'" target="_blank">用系统默认程序打开</a> · 换 Edge/Chrome 可看原图'; };
+  pre.src=src;
+  setTimeout(()=>{ if(tok===mTok && ld.style.display!=='none')
+    ld.innerHTML='<span class="spin"></span>原图较大，仍在加载…'; },6000);
+}
+function showM(){
+  if(mIdx<0||mIdx>=DATA.length) return;
+  const tok=++mTok;
+  const [kl,kn,dl,dn,dir,kt,dt]=DATA[mIdx];
+  document.getElementById('mdl').classList.add('show');
+  mFill('k',kt,kl,tok); mFill('d',dt,dl,tok);
+  document.getElementById('kFn').textContent=kn;
+  document.getElementById('dFn').textContent=dn;
+  document.getElementById('mMeta').innerHTML=
+    '第 '+(mIdx+1)+' / '+DATA.length+' 组<br><span style="color:#aaa">'+esc(dir)+'</span>';
+  const p=decodePath(dl), on=SEL.has(p);
+  document.getElementById('mActs').innerHTML=
+    '<span class="btn '+(on?'red':'grn')+'" onclick="mTog()">'
+    +(on?'取消勾选':'确认是同一张 → 勾选移出')+'</span>'
+    +'<span class="btn" onclick="window.open(\''+dl+'\')">用默认程序打开「移出」</span>'
+    +'<span class="btn" onclick="closeM()">关闭</span>';
+}
+function mTog(){
+  if(mIdx<0) return;
+  const p=decodePath(DATA[mIdx][2]);
+  if(SEL.has(p)) SEL.delete(p); else SEL.add(p);
+  updateSel(); draw(); showM();
+}
+function navM(d){
+  if(mIdx<0||!DATA.length) return;
+  let n=mIdx+d;
+  if(n<0) n=DATA.length-1;
+  if(n>=DATA.length) n=0;
+  viewB(n);
+}
+function closeM(){ mTok++; document.getElementById('mdl').classList.remove('show'); }
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('mdl').classList.contains('show'))return;
+  if(e.key==='Escape')closeM();
+  else if(e.key==='ArrowLeft')navM(-1);
+  else if(e.key==='ArrowRight')navM(1);
+});
+
+function closeMOld(){document.getElementById('mdl').classList.remove('show');}
+init().catch(e=>{
+  document.getElementById('list').innerHTML=
+    '<div class="load" style="color:#bc4c00">数据加载失败：'+esc(e.message)
+    +'<br><br>请确认 g_c_list.js 和 t\\ 文件夹与本页在同一目录。</div>';
+});
+</script>
+</body>
+</html>
