@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>G 盘重复照片 · 总览</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:20px;background:#f5f6f8;color:#1f2328;
+  font:14px/1.6 "Microsoft YaHei",system-ui,sans-serif}
+.wrap{max-width:1000px;margin:0 auto}
+h1{font-size:22px;margin:0 0 4px}
+.sub{color:#656d76;font-size:13px;margin-bottom:20px}
+.card{border:1px solid #d8dee4;border-radius:12px;background:#fff;
+  padding:18px 22px;margin-bottom:14px;text-decoration:none;display:block;
+  color:inherit;transition:.12s}
+.card:hover{border-color:#0969da;box-shadow:0 2px 10px rgba(9,105,218,.12)}
+.card h2{font-size:17px;margin:0 0 6px;font-weight:600}
+.card .desc{color:#57606a;font-size:13px;margin-bottom:12px;line-height:1.65}
+.card .nums{display:flex;gap:18px;flex-wrap:wrap;font-size:12.5px;color:#656d76}
+.card .nums b{color:#1f2328;font-size:15px}
+.card .go{color:#0969da;font-size:13px;margin-top:10px;font-weight:600}
+.card.a h2{color:#1f8833}
+.card.b h2{color:#bc4c00}
+.card.c h2{color:#0969da}
+.tip{background:#ddf4ff;border-left:4px solid #0969da;padding:12px 16px;
+  border-radius:0 8px 8px 0;font-size:13px;margin-bottom:20px;line-height:1.7}
+.warn{background:#fff8c5;border-left:4px solid #d29922;padding:12px 16px;
+  border-radius:0 8px 8px 0;font-size:13px;margin-bottom:20px;line-height:1.7}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>G 盘重复照片 · 分类总览</h1>
+<div class="sub" id="sub">加载中…</div>
+
+<div class="warn">
+<b>先说结论：</b>A 类<b>可以放心批量清理</b>（同名 + 像素零差异 + 全部跨文件夹）；
+B 类<b>必须逐张看图</b>（文件名不同、画面相似，看着像未必是同一张）。
+不确定就别勾，漏删只是占空间，误删找不回来。
+</div>
+
+<div class="tip">
+A 类支持<b>「正本文件夹」</b>：指定一个你想保留的文件夹，一键把它的照片全设为正本，
+其他文件夹的同名图自动全勾为副本。也可<b>按文件夹单独处理</b>。
+<b>点任意缩略图可放大看原图</b>（先出小图再变清晰，B 类是左右并排对比）。
+<div style="margin-top:6px">
+每个文件夹的「全选本文件夹副本」按钮上<b>带数字</b>；显示<b>（无副本）</b>并发灰的，
+说明它在这批重复里拿的都是正本、副本都在别的文件夹，点了没反应是正常的——
+要清别处的同名图，请用它左边的「★ 只保留此文件夹（应用）」。
+勾完可按<b>「只看我的副本」</b>核对勾中了哪些。
+<br>展开文件夹后，卡片上的位置标记要留意：<b style="color:#bc4c00">【本文件夹】</b>= 照片就在这个文件夹、
+<b style="color:#8250df">【他处】</b>= 在别的文件夹。「全选本文件夹副本」<b>只勾【本文件夹】的</b>，
+别把【他处】的副本卡片误认为这里有副本（例如 2007-8-25 的副本其实都在 2007-8-25夏家胡同）。
+</div>
+</div>
+
+<a class="card a" href="a.html">
+  <h2>A 类 · 同名重复　可放心清理</h2>
+  <div class="desc">
+    文件名相同 + 像素抽样验证<b>完全一致</b> + 全部跨文件夹存在。
+    按文件夹组织，可单独处理。
+  </div>
+  <div class="nums">
+    <span><b id="aGroups">—</b> 组</span>
+    <span><b id="aDups">—</b> 个副本</span>
+    <span><b id="aMb">—</b> 可释放</span>
+    <span><b id="aFolds">—</b> 个文件夹</span>
+  </div>
+  <div class="go">进入 A 类（按文件夹处理） →</div>
+</a>
+
+<a class="card b" href="b.html">
+  <h2>B 类 · 异名相似　必须看图判断</h2>
+  <div class="desc">
+    文件名不同但画面高度相似，多为连拍、重新导出或不同设备备份。
+    <b>不要批量勾选</b>，左右并排确认是同一张再勾。点缩略图可打开原图放大看。
+  </div>
+  <div class="nums">
+    <span><b id="bN">—</b> 条</span>
+    <span><b id="bMb">—</b> 涉及</span>
+  </div>
+  <div class="go">进入 B 类（逐条看图） →</div>
+</a>
+
+<a class="card c" href="c.html">
+  <h2>C 类 · 确认真重复</h2>
+  <div class="desc">
+    脚本按缓存类关键词判定的确认重复。数量很少，逐条过一遍即可。
+  </div>
+  <div class="nums">
+    <span><b id="cN">—</b> 条</span>
+    <span><b id="cMb">—</b> 涉及</span>
+  </div>
+  <div class="go">进入 C 类 →</div>
+</a>
+
+<div class="tip">
+<b>全程只读。</b>以上页面只做勾选和生成清单，不会动你的任何文件。
+要真正清理：导出清单 txt → 双击 <code>照片查重.bat</code> → 选 5 →
+先选 1 预览，确认后选 2 输入 YES，文件会移入<b>回收站</b>（可还原），不是直接删除。
+</div>
+
+</div>
+
+<script>
+/* 总览数字全部从 g_index.js 动态读取，避免写死导致「报告不对」。 */
+function fillIDX(){
+  if(!window.IDX) return;
+  var I=window.IDX, g=function(id){return document.getElementById(id);};
+  if(g('sub')) g('sub').textContent='G 盘 '
+    + (I.total_imgs? I.total_imgs.toLocaleString():'?') + ' 张'
+    + (I.total_gb? ' / '+I.total_gb+' GB':'') + ' 扫描结果';
+  if(g('aGroups')) g('aGroups').textContent=I.a_groups.toLocaleString();
+  if(g('aDups'))  g('aDups').textContent =I.a_dups.toLocaleString();
+  if(g('aMb'))     g('aMb').textContent   =I.a_mb_s;
+  if(g('aFolds'))  g('aFolds').textContent=I.a_folders.toLocaleString();
+  if(g('bN'))      g('bN').textContent    =I.b_n.toLocaleString();
+  if(g('bMb'))     g('bMb').textContent   =I.b_mb_s;
+  if(g('cN'))      g('cN').textContent    =I.c_n.toLocaleString();
+  if(g('cMb'))     g('cMb').textContent   =I.c_mb_s;
+}
+var s=document.createElement('script');
+s.src='g_index.js';
+s.onload=fillIDX;
+s.onerror=function(){var e=document.getElementById('sub');if(e)e.textContent='数据加载失败：请确认 g_index.js 与本页在同一目录';};
+document.head.appendChild(s);
+</script>
+</body>
+</html>
