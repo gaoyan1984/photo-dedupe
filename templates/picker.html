@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8">
+<title>重复照片 · 预览选择</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0f1115;color:#e6e8eb;font-family:"Microsoft YaHei",sans-serif;font-size:14px;padding:24px 16px}
+.wrap{max-width:1520px;margin:0 auto}
+h1{font-size:24px;font-weight:600;margin-bottom:5px}
+.sub{color:#8b949e;font-size:13px;margin-bottom:18px}
+.safe{background:#1c1810;border:1px solid #5a4416;border-left:3px solid #f0a63c;border-radius:8px;padding:14px 18px;font-size:13.5px;color:#e3b341;margin-bottom:16px}
+.safe b{color:#f0a63c}
+.hint{background:#141c2b;border:1px solid #24406b;border-radius:8px;padding:13px 17px;font-size:13.5px;color:#a9c7f5;margin-bottom:18px}
+.hint b{color:#4a9eff}
+.bar{position:sticky;top:0;background:#0f1115f5;backdrop-filter:blur(12px);padding:12px 0;z-index:30;border-bottom:1px solid #262b35;margin-bottom:16px;display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.btn{background:#171a21;border:1px solid #30363d;border-radius:7px;padding:9px 14px;color:#c9d1d9;font-size:13px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#4a9eff;color:#4a9eff}
+.btn.warn{background:#3d1c1c;border-color:#f85149;color:#ff7b72}
+.btn.warn:hover{background:#4d2424}
+.btn.gh{background:#1a2b45;border-color:#2d5a8a;color:#7ec0ff}
+.stat{margin-left:auto;font-size:12.5px;color:#8b949e;display:flex;gap:18px;flex-wrap:wrap}
+.stat b{color:#4a9eff;font-size:15px;display:block}
+.stat div{text-align:right}
+.grp{background:#171a21;border:1px solid #262b35;border-radius:9px;margin-bottom:15px;overflow:hidden}
+/* ---- 折叠：.grp.fold 隐藏内容区，只留标题栏 ---- */
+.grp.fold .grid,.grp.fold .gsel{display:none}
+.grp.fold .gh{border-bottom:none}
+.gfold{width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;
+  color:#8b949e;font-size:9px;flex-shrink:0;cursor:pointer;transition:transform .15s;user-select:none}
+.grp.fold .gfold{transform:rotate(-90deg)}
+.gfold:hover{color:#4a9eff}
+.grp.sus{border-color:#5a4416}
+.grp.picked{border-color:#3fb950;box-shadow:0 0 0 1px rgba(63,185,80,.25)}
+.gh{display:flex;align-items:center;gap:11px;padding:12px 16px;background:#1f2430;flex-wrap:wrap;cursor:pointer}
+.sus .gh{background:#241f13}
+.grp.picked .gh{background:#16241c}
+.bd{font-size:11.5px;padding:2px 9px;border-radius:4px}
+.bd.ok{background:#1c3d26;color:#3fb950}
+.bd.sus{background:#4a3810;color:#f0a63c}
+.gid{font-size:12.5px;color:#8b949e}
+.gm{font-size:12.5px;color:#8b949e}
+.gl{font-size:11.5px;color:#6e7681;font-family:Consolas,monospace;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini{background:#1a2b45;border:1px solid #2d5a8a;color:#4a9eff;font-size:11.5px;padding:4px 11px;border-radius:5px;cursor:pointer;white-space:nowrap}
+.mini:hover{background:#24406b}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;padding:15px}
+.pick{background:#14171d;border:1px solid #262b35;border-radius:8px;overflow:hidden;cursor:pointer;transition:.13s;position:relative}
+.pick:hover{border-color:#3d4553}
+.pick.on{border-color:#3fb950;box-shadow:0 0 0 2px rgba(63,185,80,.22)}
+.pick.off .ph{opacity:.32}
+.pick.keep-mark::before{content:"正本";position:absolute;top:7px;left:7px;background:#3fb950;color:#fff;font-size:10.5px;padding:2px 7px;border-radius:4px;font-weight:600;z-index:2}
+.ph{height:155px;background:#0c0e12;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:zoom-in}
+.ph img{width:100%;height:100%;object-fit:contain}
+.nopic{color:#4a5159;font-size:12px}
+.pi{padding:9px 11px}
+.fn{font-size:12.5px;color:#e6e8eb;word-break:break-all;line-height:1.4;margin-bottom:3px;font-family:Consolas,monospace}
+.pp{font-size:11px;color:#6e7681;word-break:break-all;font-family:Consolas,monospace;max-height:30px;overflow:hidden}
+.mt{font-size:11px;color:#8b949e;margin-top:5px}
+.rad{display:flex;align-items:center;gap:8px;padding:9px 11px;border-top:1px solid #1f2430;cursor:pointer;font-size:12.5px;color:#8b949e;background:#111419}
+.pick.on .rad{color:#3fb950;background:#14211a}
+.rad input{accent-color:#3fb950;width:16px;height:16px;cursor:pointer;margin:0;flex-shrink:0}
+.gsel{padding:10px 16px;background:#111419;border-top:1px solid #262b35;font-size:12.5px;color:#8b949e;display:flex;gap:22px;flex-wrap:wrap;align-items:center}
+.grp.picked .gsel{background:#101a14}
+.gsel .cur{color:#4a9eff;font-family:Consolas,monospace;font-weight:500;word-break:break-all}
+.gsel .free{color:#f0a63c;font-weight:500}
+.sus .gsel .cur{color:#f0a63c}
+.modal{position:fixed;inset:0;background:#000000f2;z-index:100;display:none;align-items:center;justify-content:center;padding:26px;cursor:zoom-out}
+.modal.show{display:flex}
+.mwrap{text-align:center;max-width:100%}
+.modal img{max-width:94vw;max-height:82vh;object-fit:contain;background:#000}
+.mmeta{color:#8b949e;font-size:13px;margin-top:12px;word-break:break-all;font-family:Consolas,monospace}
+.mnav{display:flex;gap:10px;justify-content:center;margin-top:12px}
+.mclose{position:absolute;top:14px;right:24px;color:#fff;font-size:38px;cursor:pointer;line-height:1}
+.out{background:#171a21;border:1px solid #30363d;border-radius:9px;padding:20px;margin-top:20px}
+.out h3{font-size:15px;margin-bottom:9px}
+.out p{font-size:13px;color:#8b949e;margin-bottom:11px}
+textarea{width:100%;height:250px;background:#0c0e12;border:1px solid #30363d;border-radius:7px;color:#c9d1d9;padding:12px;font-family:Consolas,monospace;font-size:11.5px;resize:vertical}
+.row{display:flex;gap:10px;margin-top:12px;flex-wrap:wrap}
+.foot{margin-top:26px;padding-top:15px;border-top:1px solid #262b35;font-size:12.5px;color:#6e7681}
+</style></head><body><div class="wrap">
+
+<h1>重复照片 · 预览与选择</h1>
+<div class="sub">扫描 <code>@@TARGET@@</code>　|　@@GROUPS@@ 组　|　@@FILES@@ 个文件　|　可多选保留</div>
+
+<div class="safe">
+<b>⚠️ 本页面不会删除任何文件。</b>你的点击只是"记录选择"，页面会导出成清单供你核对。<br>
+真正删哪些由你决定——建议先移到回收站，不要直接删除。
+</div>
+
+<div class="hint">
+<b>操作方式：</b>
+<div style="margin-top:6px">
+· <b>点图片放大</b>看原图（可左右切换看同组其他图）<br>
+· <b>点卡片</b>或勾选框 → 切换该文件<b>保留/移出</b>（绿框=保留，灰暗=移出）<br>
+· <b>每组可多选保留</b>：若你认为组内多张都需要保留，把它们都勾上即可<br>
+· 组标题栏左侧的方块可<b>整组全选/全不选</b>；每组右侧"全留"/"全移"快速操作<br>
+· <b>点标题栏最左的 ▼ 箭头</b>或"折叠本组"可收起该组，只看标题快速浏览；顶部"展开全部/收起全部"控制所有组
+</div>
+</div>
+
+<div class="bar">
+  <button class="btn" onclick="allKeep()">全部保留</button>
+  <button class="btn" onclick="allDrop()">全部移出</button>
+  <button class="btn gh" onclick="restoreDefault()">恢复默认</button>
+  <button class="btn" onclick="expandAll(1)">展开全部</button>
+  <button class="btn" onclick="expandAll(0)">收起全部</button>
+  <button class="btn warn" onclick="showOut()">生成处理清单</button>
+  <div class="stat">
+    <div>组数<b id="sG">0</b></div>
+    <div>保留<b id="sK">0</b></div>
+    <div>移出<b id="sD">0</b></div>
+    <div>可释放<b id="sM">0</b></div>
+  </div>
+</div>
+
+<div id="list">@@CARDS@@</div>
+
+<div class="out" id="out" style="display:none">
+  <h3>📋 处理清单（请自行核对）</h3>
+  <p>每组第一行是<b style="color:#3fb950">保留</b>，其余是<b style="color:#f85149">移出</b>。你也可以保留多张——清单会如实反映。<b>我无法替你判断哪张照片更重要，动之前请务必自己过一遍。</b></p>
+  <textarea id="txt" readonly></textarea>
+  <div class="row">
+    <button class="btn" onclick="copyOut()">复制到剪贴板</button>
+    <button class="btn" onclick="downloadOut()">下载为 txt</button>
+  </div>
+</div>
+
+<div class="modal" id="md" onclick="closeModal(event)">
+  <span class="mclose" onclick="closeModal()">&times;</span>
+  <div class="mwrap" onclick="event.stopPropagation()">
+    <img id="mdi" src="" onerror="this.style.display='none';document.getElementById('merr').style.display='block'">
+    <div id="merr" style="display:none;color:#f85149;font-size:14px;padding:40px">
+      ⚠️ 浏览器无法直接加载该原图<br>
+      <span style="color:#8b949e;font-size:13px">可能是路径含特殊字符或文件已被移动。<br>完整路径见下方，点"用系统看图程序打开"试试。</span>
+    </div>
+    <div class="mmeta" id="mmeta"></div>
+    <div class="mnav">
+      <button class="btn" onclick="navImg(-1)">← 上一张</button>
+      <button class="btn" onclick="navImg(1)">下一张 →</button>
+      <button class="btn" onclick="openSys()">用系统看图程序打开</button>
+    </div>
+  </div>
+</div>
+
+<div class="foot">生成于 @@TIME@@　|　本页只读，未改动任何原文件</div>
+</div>
+<script>
+const SZ = @@SZ@@;
+let curGi=null, curIdx=0;
+
+// Windows 路径 -> file:// 链接。
+// 坑 1: 中文必须 UTF-8 百分号编码（"大" = %E5%A4%A7，3 字节），不能用 %XX 两位格式
+//坑 2: 必须把反斜杠转成正斜杠，否则浏览器打不开
+function rel(p){
+  // 先按 UTF-8 编码非 ASCII 字符，再处理分隔符
+  var enc = encodeURIComponent(p)
+               .replace(/%3A/gi, ':')   // 保留盘符冒号
+               .replace(/%5C/gi, '/');  // 反斜杠 -> 正斜杠
+  return 'file:///' + enc;
+}
+
+function picksOf(g){ return Array.from(g.querySelectorAll('.pick')); }
+function keptOf(g){ return picksOf(g).filter(function(p){ return p.classList.contains('on'); }); }
+
+function paint(g){
+  const kept = keptOf(g);
+  const ks = kept.map(function(p){return p.dataset.p;});
+  let t = 0;
+  picksOf(g).forEach(function(p){
+    const on = p.classList.contains('on');
+    p.querySelector('input').checked = on;
+    p.classList.toggle('off', !on);
+    p.classList.toggle('keep-mark', on && p.dataset.p === g.dataset.keep);
+    if(!on) t += SZ[p.dataset.p]||0;
+  });
+  g.classList.toggle('picked', kept.length > 0);
+  g.querySelector('.cur').textContent = ks.length
+      ? (ks.length===1 ? ks[0] : '已保留 '+ks.length+' 个（多选）')
+      : '⚠ 本组全部移出，请确认';
+  g.querySelector('.free').textContent = '将释放 ' + (t/1024).toFixed(0) + ' KB';
+  return t;
+}
+
+function toggle(g, path, forceOn){
+  const p = picksOf(g).find(function(x){ return x.dataset.p === path; });
+  if(!p) return;
+  const on = (forceOn !== undefined) ? forceOn : !p.classList.contains('on');
+  p.classList.toggle('on', on);
+  paint(g); tot();
+}
+
+function groupSet(g, on){
+  picksOf(g).forEach(function(p){ p.classList.toggle('on', on); });
+  paint(g); tot();
+}
+function bestIn(g){
+  let best = g.dataset.keep, bs = 1e18;
+  picksOf(g).forEach(function(p){
+    const sz = SZ[p.dataset.p]||0;
+    const bonus = (p.dataset.p === g.dataset.keep) ? -1e6 : 0;
+    if(sz + bonus < bs){ bs = sz+bonus; best = p.dataset.p; }
+  });
+  return best;
+}
+function pickBest(gi){
+  const g = document.getElementById('g'+gi);
+  const b = bestIn(g);
+  picksOf(g).forEach(function(p){ p.classList.toggle('on', p.dataset.p === b); });
+  paint(g); tot();
+}
+function keepAll(gi){
+  groupSet(document.getElementById('g'+gi), true);
+}
+function dropAll(gi){
+  groupSet(document.getElementById('g'+gi), false);
+}
+
+function tot(){
+  let g=0,k=0,d=0,m=0;
+  document.querySelectorAll('.grp').forEach(function(grp){
+    g++;
+    m += paint(grp);
+    const ks = keptOf(grp);
+    k += ks.length;
+    d += picksOf(grp).length - ks.length;
+  });
+  document.getElementById('sG').textContent = g;
+  document.getElementById('sK').textContent = k;
+  document.getElementById('sD').textContent = d;
+  document.getElementById('sM').textContent = (m/1024/1024).toFixed(2)+' MB';
+}
+
+function allKeep(){ document.querySelectorAll('.grp').forEach(function(g){ keepAll(g.id.slice(1)); }); }
+function allDrop(){ document.querySelectorAll('.grp').forEach(function(g){ dropAll(g.id.slice(1)); }); }
+function restoreDefault(){
+  document.querySelectorAll('.grp').forEach(function(g){ pickBest(g.id.slice(1)); });
+}
+function foldGroup(gi, force){
+  const g = document.getElementById('g' + gi);
+  if(!g) return;
+  const want = (force === undefined) ? !g.classList.contains('fold') : !!force;
+  g.classList.toggle('fold', want);
+}
+function expandAll(o){
+  document.querySelectorAll('.grp').forEach(function(g){
+    g.classList.toggle('fold', !o);
+  });
+}
+
+// ---- 事件绑定 ----
+document.querySelectorAll('.pick').forEach(function(p){
+  p.addEventListener('click', function(e){
+    if(e.target.tagName === 'IMG'){ zoom(p); return; }
+    if(e.target.tagName === 'INPUT'){ return; }
+    p.classList.toggle('on');
+    paint(p.closest('.grp')); tot();
+  });
+});
+// 复选框直接操作
+document.querySelectorAll('.pick input').forEach(function(cb){
+  cb.addEventListener('change', function(){
+    const p = cb.closest('.pick');
+    p.classList.toggle('on', cb.checked);
+    paint(p.closest('.grp')); tot();
+  });
+});
+// 组标题栏：点方块整组切换
+document.querySelectorAll('.gcheck').forEach(function(box){
+  box.addEventListener('click', function(e){
+    e.stopPropagation();
+    const g = box.closest('.grp');
+    const anyOff = picksOf(g).some(function(p){ return !p.classList.contains('on'); });
+    groupSet(g, anyOff);
+  });
+});
+// 组内小按钮
+document.querySelectorAll('[data-act]').forEach(function(b){
+  b.addEventListener('click', function(e){
+    e.stopPropagation();
+    const g = b.closest('.grp'), gi = g.id.slice(1), a = b.dataset.act;
+    if(a === 'best') pickBest(gi);
+    else if(a === 'keep') keepAll(gi);
+    else if(a === 'drop') dropAll(gi);
+    else if(a === 'fold') foldGroup(gi);
+  });
+});
+
+// ---- 灯箱 ----
+function zoom(p){
+  const g = p.closest('.grp');
+  curGi = g.id.slice(1);
+  const ps = picksOf(g);
+  curIdx = ps.indexOf(p);
+  showImg();
+}
+function showImg(){
+  const g = document.getElementById('g'+curGi);
+  const ps = picksOf(g), p = ps[curIdx];
+  if(!p) return;
+  const img = document.getElementById('mdi');
+  img.style.display = 'block';
+  document.getElementById('merr').style.display = 'none';
+  img.src = rel(p.dataset.p);
+  document.getElementById('mmeta').textContent =
+    (curIdx+1) + ' / ' + ps.length + '　' + p.dataset.p;
+  document.getElementById('md').classList.add('show');
+}
+function navImg(d){
+  const g = document.getElementById('g'+curGi);
+  const ps = picksOf(g);
+  curIdx = (curIdx + d + ps.length) % ps.length;
+  showImg();
+}
+function closeModal(){
+  document.getElementById('md').classList.remove('show');
+  document.getElementById('mdi').src = '';
+}
+function openSys(){
+  const g = document.getElementById('g'+curGi);
+  const p = picksOf(g)[curIdx];
+  if(p) window.open(rel(p.dataset.p));
+}
+document.addEventListener('keydown', function(e){
+  if(!document.getElementById('md').classList.contains('show')) return;
+  if(e.key === 'Escape') closeModal();
+  else if(e.key === 'ArrowLeft') navImg(-1);
+  else if(e.key === 'ArrowRight') navImg(1);
+});
+
+// ---- 导出清单 ----
+function showOut(){
+  const L = [];
+  const ts = new Date().toLocaleString('zh-CN');
+  L.push('重复照片处理清单   生成时间: ' + ts);
+  L.push('================================================================');
+  L.push('规则: 每组 [保留] = 留着的，[移出] = 可清理的。可多张保留。');
+  L.push('请自行核对后决定是否执行。建议先移到回收站，不要直接删除。');
+  L.push('');
+  let g=0, dr=0, tt=0, warn=0;
+  document.querySelectorAll('.grp').forEach(function(grp){
+    const gi = grp.id.slice(1);
+    const ks = keptOf(grp), ps = picksOf(grp);
+    g++;
+    if(ks.length === 0) warn++;
+    L.push('--- 组 #' + gi + ' ---');
+    if(ks.length === 0){
+      L.push('[警告] 本组未选择保留项，会被全部移出！');
+    }
+    ks.forEach(function(p){ L.push('[保留] ' + p.dataset.p); });
+    let t = 0;
+    ps.forEach(function(p){
+      if(!p.classList.contains('on')){ t += SZ[p.dataset.p]||0; dr++; L.push('[移出] ' + p.dataset.p); }
+    });
+    tt += t;
+    L.push('本组可释放: ' + (t/1024).toFixed(0) + ' KB');
+    L.push('');
+  });
+  L.push('================================================================');
+  L.push('合计: ' + g + ' 组，移出 ' + dr + ' 个，可释放 ' + (tt/1024/1024).toFixed(2) + ' MB');
+  if(warn) L.push('★ 注意: 有 ' + warn + ' 组未勾选任何保留项，请确认是否要整组删掉。');
+  document.getElementById('txt').value = L.join('\n');
+  document.getElementById('out').style.display = 'block';
+  document.getElementById('out').scrollIntoView({behavior:'smooth'});
+}
+function copyOut(){
+  const t = document.getElementById('txt');
+  t.select(); t.setSelectionRange(0, 999999);
+  try{ document.execCommand('copy'); alert('已复制到剪贴板'); }
+  catch(e){ alert('请手动 Ctrl+C 复制'); }
+}
+function downloadOut(){
+  const t = document.getElementById('txt').value;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff'+t], {type:'text/plain;charset=utf-8'}));
+  a.download = '重复照片处理清单.txt';
+  a.click();
+}
+
+window.addEventListener('load', function(){ restoreDefault(); });
+</script>
+</body></html>
