@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>A 类 · 同名重复（按文件夹） · G盘查重</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:16px;background:#f5f6f8;color:#1f2328;
+  font:14px/1.6 "Microsoft YaHei",system-ui,sans-serif}
+.wrap{max-width:1340px;margin:0 auto}
+h1{font-size:20px;margin:0 0 4px}
+.sub{color:#656d76;font-size:13px;margin-bottom:12px}
+.nav a{color:#0969da;text-decoration:none;font-size:13px;margin-right:14px}
+.nav a:hover{text-decoration:underline}
+
+.bar{position:sticky;top:0;z-index:20;background:#fff;border:1px solid #d8dee4;
+  border-radius:10px;padding:10px 14px;margin-bottom:14px;
+  box-shadow:0 1px 8px rgba(0,0,0,.06)}
+.bar .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.bar .row:last-child{margin-bottom:0}
+.btn{background:#eef1f4;border:1px solid #d0d7de;border-radius:6px;padding:5px 12px;
+  cursor:pointer;font-size:13px;user-select:none;white-space:nowrap}
+.btn:hover{background:#e3e7eb}
+.btn.pri{background:#0969da;color:#fff;border-color:#0969da}
+.btn.grn{background:#1f883d;color:#fff;border-color:#1f883d}
+.btn.gry{background:#6e7781;color:#fff;border-color:#6e7781}
+.btn.on{background:#0969da;color:#fff;border-color:#0969da;font-weight:600}
+/* 副本数为 0 的文件夹：按钮置灰，别让用户点了没反应还以为坏了 */
+.btn.off{opacity:.42}
+.bs{display:inline-flex;align-items:center;gap:6px;font-size:12px;
+  color:#0969da;font-weight:600;margin-left:2px}
+.bs.done{color:#1a7f37}
+.bs.warn{color:#bc4c00;font-weight:400}
+.stat{font-size:13px;color:#57606a}
+.stat b{color:#0969da;font-size:16px}
+/* 坑：文件夹折叠时点「全选」，唯一的变化是页面顶部那个计数，
+   滚到中间根本看不见，用户就认定按钮坏了。数字一变就闪一下。 */
+.stat b{transition:color .15s,background .15s;border-radius:3px;padding:0 3px}
+.stat b.flash{color:#fff;background:#1f883d}
+
+/* 文件夹卡片 */
+.fd{border:1px solid #d8dee4;border-radius:10px;background:#fff;margin-bottom:9px;overflow:hidden}
+.fd .hd{display:flex;align-items:center;gap:10px;padding:10px 13px;
+  background:#f6f8fa;border-bottom:1px solid #e4e8ec;flex-wrap:wrap}
+.fd.fold .hd{border-bottom:none}
+.fd .nm{font-weight:600;font-size:13.5px;word-break:break-all;flex:1;min-width:200px}
+.fd .tag{font-size:11.5px;padding:2px 8px;border-radius:10px;background:#eef1f4;
+  color:#656d76;white-space:nowrap}
+.fd .tag.m{background:#dafbe1;color:#1f8833}
+.fd .tag.d{background:#fff1e5;color:#bc4c00}
+.fd .acts{display:flex;gap:6px;flex-wrap:wrap}
+.fd .acts .btn{padding:3px 9px;font-size:12px}
+.fd .body{padding:11px 13px}
+.fd.fold .body{display:none}
+
+.cl{border:1px solid #e4e8ec;border-radius:8px;background:#fcfcfd;margin-bottom:8px;overflow:hidden}
+.cl .chd{display:flex;align-items:center;gap:9px;padding:7px 11px;
+  background:#f6f8fa;border-bottom:1px solid #eceff2;cursor:pointer;flex-wrap:wrap}
+.cl.fold .chd{border-bottom:none}
+.cl .chd .nm{font-weight:600;font-size:12.5px;word-break:break-all;flex:1;min-width:150px}
+.cl .body{padding:9px 11px;display:flex;gap:10px;flex-wrap:wrap}
+.cl.fold .body{display:none}
+
+/* 卡片改为横排：缩略图在左，文件名/位置/完整路径/勾选框在右，
+   完整路径用右侧大空间横向铺开，不再挤在缩略图下方。 */
+.it{display:flex;align-items:flex-start;gap:10px;flex:1 1 320px;min-width:0;
+  max-width:480px;margin-bottom:8px}
+.it .box{width:104px;height:104px;border:2px solid #d8dee4;border-radius:8px;
+  overflow:hidden;background:#f0f2f4;position:relative;cursor:pointer;transition:.12s;
+  flex-shrink:0}
+.it .box:hover{border-color:#0969da}
+.it img{width:100%;height:100%;object-fit:cover;display:block}
+.it .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.it .cap{font-size:12px;color:#1f2328;font-weight:600;line-height:1.35;
+  word-break:break-all;max-height:32px;overflow:hidden}
+.it .role{position:absolute;top:0;left:0;font-size:10.5px;padding:2px 6px;
+  border-radius:0 0 6px 0;font-weight:600}
+.it.keep .box{border-color:#1f8833;border-width:3px;background:#f0fff4}
+.it.keep .role{background:#1f8833;color:#fff}
+.it.dup .box{border-color:#d8dee4}
+.it.dup .role{background:#6e7781;color:#fff}
+.it.dup.sel .box{border-color:#cf222e;background:#fff5f5}
+.it.dup.sel .role{background:#cf222e}
+.it.keep.ksel .box{border-color:#0969da;background:#f0f6ff}
+.it.keep.ksel .role{background:#0969da}
+.it .chk{display:flex;align-items:center;gap:5px;margin-top:5px;font-size:11.5px;
+  cursor:pointer;user-select:none}
+.it .chk input{cursor:pointer;width:14px;height:14px;margin:0;flex-shrink:0}
+.it.keep .chk{color:#1f8833;font-weight:600}
+.it.dup .chk{color:#57606a}
+.it .dir{font-size:11px;color:#8b949e;margin-top:0;word-break:break-all;
+  max-height:28px;overflow:hidden;line-height:1.3}
+.it.here .box{outline:2px solid #bc4c00;outline-offset:1px}
+/* 坑：用户点开 G:\xiangpian\2007-8-25 看到「副本」卡片，就以为这个文件夹有副本，
+   其实那 11 组的副本全在 2007-8-25夏家胡同 —— 10px 灰字文件夹名没人看。
+   必须加文字级标记 + 顶部横幅把去向写出来。 */
+.it .dir .hl{color:#bc4c00;font-weight:700}
+.it .dir .el{color:#8250df;font-weight:600}
+/* 完整路径单独一行：等宽字体 + 可点击复制。
+   以前只显示「文件名」和「文件夹」两行拆开的文字，用户想核对「保留/移出」
+   时根本没有整条路径可用，导出清单也只有 [移出] 没有 [保留]，没法对账。 */
+.it .fp{font-size:11px;color:#24292f;margin-top:0;word-break:break-all;
+  font-family:Consolas,"Courier New",monospace;background:#f6f8fa;
+  border:1px solid #d0d7de;border-radius:5px;padding:2px 6px;cursor:pointer;line-height:1.4}
+.it .fp:hover{background:#fff8e6;border-color:#f0c36d}
+.it.keep .fp{border-color:#1f8833;background:#f0fff4}
+.it.dup  .fp{border-color:#cf222e;background:#fffbe9}
+.fnote{margin:8px 13px 4px;padding:9px 12px;border-radius:8px;font-size:12.5px;line-height:1.8}
+.fnote.warn{background:#fff8e6;border:1px solid #f0c36d;color:#7a4d00}
+.fnote.warn b{color:#bc4c00}
+.fnote.info{background:#f0f6ff;border:1px solid #b6d0f5;color:#2a4a7a}
+
+.hint{background:#ddf4ff;border-left:4px solid #0969da;padding:11px 14px;
+  border-radius:0 8px 8px 0;margin-bottom:12px;font-size:13px}
+.big{background:#fff8c5;border-left:4px solid #d29922;padding:11px 14px;
+  border-radius:0 8px 8px 0;margin-bottom:12px;font-size:13px}
+
+.mdl{display:none;position:fixed;inset:0;background:rgba(0,0,0,.94);z-index:100;
+  align-items:center;justify-content:center;flex-direction:column}
+.mdl.show{display:flex}
+/* 坑：原图动辄 5~25MB，直接设 img.src 会黑屏十几秒，用户以为点了没反应。
+   做法是缩略图立刻顶上（模糊但马上有画面），原图后台加载完再淡入覆盖。 */
+.mdl .stage{display:flex;align-items:center;gap:6px;max-width:96vw}
+/* 坑：占位图和原图都是绝对定位，谁都不撑开父容器，框子会塌成 0×0 一片空白。
+   必须给 .phbox 一个固定尺寸，两张图再 absolute 填满、contain 居中。 */
+.mdl .phbox{position:relative;width:min(88vw,1180px);height:min(74vh,880px);
+  display:flex;align-items:center;justify-content:center}
+.mdl .phbox>img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;border:2px solid #444;border-radius:6px;background:#111}
+.mdl #mPh{filter:blur(.6px);transition:opacity .18s}
+.mdl #mImg{opacity:0;transition:opacity .18s}
+.mdl .ld{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  color:#ccc;font-size:13px;background:rgba(0,0,0,.6);padding:6px 14px;border-radius:20px;
+  white-space:nowrap}
+/* 放底部小条，不遮挡图片——原图加载失败时缩略图放大版仍要看得到 */
+.mdl .bad{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);
+  background:rgba(0,0,0,.82);border:1px solid #6e4b1a;color:#ffd479;
+  font-size:11.5px;padding:6px 12px;border-radius:8px;text-align:center;
+  line-height:1.55;max-width:86vw;white-space:normal}
+.mdl .bad a{color:#79c0ff}
+.mdl .meta{color:#eee;font-size:13px;margin-top:12px;max-width:90vw;
+  word-break:break-all;text-align:center;line-height:1.6}
+.mdl .nav{color:#aaa;font-size:30px;padding:0 22px;cursor:pointer;user-select:none}
+.mdl .nav:hover{color:#fff}
+.mdl .close{position:absolute;top:16px;right:22px;color:#fff;font-size:32px;
+  cursor:pointer;user-select:none;line-height:1}
+.mdl .hintk{color:#999;font-size:12px;margin-top:6px}
+.mdl .macts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;justify-content:center}
+.mdl .macts .btn{background:#21262d;color:#e6edf3;border-color:#444}
+.mdl .macts .btn:hover{background:#30363d}
+.mdl .macts .btn.grn{background:#1f883d;border-color:#1f883d;color:#fff}
+.mdl .macts .btn.red{background:#cf222e;border-color:#cf222e;color:#fff}
+.mdl .macts .btn.on{background:#0969da;border-color:#0969da;color:#fff}
+
+/* 正本文件夹 */
+.mst{background:#f0fff4;border:1px solid #a7f3d0;border-radius:8px;
+  padding:9px 12px;margin-bottom:10px}
+.mst .ttl{font-size:12.5px;font-weight:600;color:#1a7f37;margin-bottom:6px}
+.mst select{max-width:520px;border:1px solid #d0d7de;border-radius:5px;padding:4px 6px;
+  font-size:12.5px}
+.mtag{display:inline-flex;align-items:center;gap:5px;background:#dafbe1;
+  color:#1a7f37;border:1px solid #a7f3d0;border-radius:14px;padding:2px 9px;
+  font-size:12px;margin:2px 4px 2px 0}
+.mtag b{font-weight:600}
+.mtag .x{cursor:pointer;color:#1a7f37;font-weight:700;padding:0 2px}
+.mtag .x:hover{color:#cf222e}
+
+.load{text-align:center;padding:40px;color:#656d76;font-size:14px}
+.spin{display:inline-block;width:16px;height:16px;border:2px solid #d0d7de;
+  border-top-color:#0969da;border-radius:50%;animation:sp .7s linear infinite;
+  vertical-align:-3px;margin-right:7px}
+@keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>A 类 · 同名重复（按文件夹处理）</h1>
+<div class="sub" id="sub">加载中…</div>
+<div class="nav"><a href="index.html">返回总览</a><a href="b.html">B 类（异名）</a><a href="c.html">C 类（确认）</a></div>
+
+<div class="big">
+<b>用法一（推荐）：先定「正本文件夹」。</b>
+下面的第一行下拉框选一个你最想保留的文件夹（比如整理好的那个），
+点「应用」——所有重复组里，只要这个文件夹里有，<b>就把它设为正本</b>，
+其他文件夹里的同名图<b>自动全勾为副本</b>。剩下的导出清单清理即可。可以加多个。
+<div style="margin-top:6px;color:#57606a;font-size:12.5px">
+<b>关于每个文件夹的按钮：</b>
+「全选本文件夹副本」后面括号里是这个文件夹<b>实际有多少个副本</b>——
+显示<b>（无副本）</b>且按钮发灰的，说明它在这批重复里拿的都是正本，副本都在别的文件夹，
+点了不会有反应是正常的；要清别处的同名图，请用它左边的「★ 只保留此文件夹（应用）」。
+点完想确认勾了哪些，按一下<b>「只看我的副本」</b>，列出的就全是你刚才勾上的。
+</div>
+</div>
+
+<div class="hint">
+同名 + 像素已抽样验证<b>完全一致</b> + 全部跨文件夹，谁当正本都不影响内容。
+<b>全程只读</b>，勾选只是生成清单，删不删由你决定。
+</div>
+
+<div class="bar">
+  <div class="mst">
+    <div class="ttl">① 正本文件夹（保留这里的，其他文件夹的同名图全部变副本）</div>
+    <div class="row" style="margin-bottom:6px">
+      <select id="mSel" style="max-width:560px;border:1px solid #d0d7de;border-radius:5px;padding:4px 6px;font-size:12.5px"></select>
+      <span class="btn pri" onclick="addMaster()">添加为正本文件夹</span>
+      <span class="btn grn" onclick="applyMaster()">应用</span>
+      <span class="btn gry" onclick="clearMaster()">清除</span>
+      <label class="stat" style="font-size:12px;cursor:pointer">
+        <input type="checkbox" id="mRest" style="vertical-align:-2px"> 正本文件夹里没有的组，副本也一并勾选
+      </label>
+    </div>
+    <div id="mTags" style="color:#57606a;font-size:12px">还没有选择，当前正本 = 各组的默认那张</div>
+  </div>
+  <div class="row">
+    <span class="btn" onclick="expandAll(true)">展开全部</span>
+    <span class="btn" onclick="expandAll(false)">收起全部</span>
+    <span class="btn grn" onclick="selAll(true)">勾选全部副本</span>
+    <span class="btn gry" onclick="selAll(false)">取消全部</span>
+    <span class="btn" onclick="copyList()">复制路径</span>
+    <span class="btn" onclick="saveList()">导出清单 txt</span>
+    <span class="stat">副本 <b id="selN">0</b> 个 · 可释放 <b id="selMB">0</b> MB　|　正本 <b id="keepN">0</b> 个</span>
+  </div>
+  <div class="row">
+    <label class="stat">每文件夹显示
+      <select id="perF" onchange="PERF=+this.value;render()"
+        style="border:1px solid #d0d7de;border-radius:5px;padding:3px 6px">
+        <option value="5">5</option>
+        <option value="10" selected>10</option>
+        <option value="20">20</option>
+        <option value="50">50</option>
+        <option value="100">100</option>
+        <option value="300">300</option>
+        <option value="99999">全部</option>
+      </select> 组
+    </label>
+    <span style="color:#656d76;font-size:11.5px" id="perTip">
+      组数调大时，建议一次只展开一两个文件夹，展开太多会变慢
+    </span>
+  </div>
+</div>
+
+<div id="list"><div class="load"><span class="spin"></span>正在加载…</div></div>
+</div>
+
+<div class="mdl" id="mdl" onclick="if(event.target===this)closeM()">
+  <div class="close" onclick="closeM()">&times;</div>
+  <div class="stage">
+    <span class="nav" onclick="navM(-1)">&#8249;</span>
+    <div class="phbox">
+      <img id="mPh" alt="">
+      <img id="mImg" alt="">
+      <div class="ld" id="mLd"><span class="spin"></span>正在加载原图…</div>
+      <div class="bad" id="mBad" style="display:none"></div>
+    </div>
+    <span class="nav" onclick="navM(1)">&#8250;</span>
+  </div>
+  <div class="meta" id="mMeta"></div>
+  <div class="macts" id="mActs"></div>
+  <div class="hintk">← → 翻看本组所有图 · Esc 关闭</div>
+</div>
+
+<script>
+window.PART={};
+let IDX=null, FDATA=null, cache={}, PERF=10;
+let SEL=new Set(), KEEPSEL=new Set(), MB=new Map();
+let FOLD=[], curOpen=new Set();
+/* ONLYMINE：该文件夹只列出「我在其中持有副本」的组。
+   坑：默认视图列的是「这个文件夹参与到的所有组」，一个 2735 组的文件夹
+   前 10 组可能一张本文件夹的副本都没有，点了全选眼前毫无变化。 */
+let ONLYMINE=new Set();
+let MASTER=new Set();          // 正本文件夹：这些文件夹里的照片一律当正本
+
+/* ---------- 正本文件夹 ---------- */
+function masterLabel(dir){
+  const f=FOLD.find(x=>x[0]===dir);
+  return f ? dir+'　（'+f[1]+' 组 / '+f[2]+' 个副本 / '+fmtMB(f[3])+'）' : dir;
+}
+function initMaster(){
+  const sel=document.getElementById('mSel');
+  const sorted=[...FOLD].sort((a,b)=>a[0].localeCompare(b[0],'zh-Hans-CN'));
+  sel.innerHTML=sorted.map(f=>'<option value="'+esc(f[0])+'">'
+    +esc(f[0]+'　（'+f[1]+' 组 / '+f[2]+' 个副本 / '+fmtMB(f[3])+'）')+'</option>').join('');
+}
+function renderMaster(){
+  const box=document.getElementById('mTags');
+  if(!MASTER.size){ box.innerHTML='还没有选择，当前正本 = 各组的默认那张'; return; }
+  box.innerHTML=[...MASTER].map(d=>'<span class="mtag"><b>'+esc(d)+'</b>'
+    +'<span class="x" onclick="delMaster(\''+d.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">×</span></span>').join('');
+}
+function addMaster(){
+  const d=document.getElementById('mSel').value;
+  if(!d) return;
+  if(MASTER.has(d)){ alert('这个文件夹已经在列表里了'); return; }
+  MASTER.add(d); renderMaster();
+}
+function delMaster(d){ MASTER.delete(d); renderMaster(); }
+function clearMaster(){ MASTER.clear(); renderMaster(); }
+
+/* 应用：正本文件夹里的设正本，其余文件夹的同名图全勾为副本 */
+async function applyMaster(){
+  if(!MASTER.size){ alert('先在下拉框里选一个要保留的文件夹，点「添加为正本文件夹」'); return; }
+  const rest=document.getElementById('mRest').checked;
+  document.getElementById('list').innerHTML=
+    '<div class="load"><span class="spin"></span>正在读取全部 '+IDX.total.toLocaleString()+' 组并设置正本…</div>';
+  await loadAllChunks();
+  let hit=0, moved=0, sel=0, mb=0, noHit=0, keepSame=0;
+  Object.values(cache).forEach(arr=>arr.forEach(c=>{
+    const items=[c.keeppath].concat(c.dups);
+    let idx=-1;
+    for(let i=0;i<items.length;i++){ if(MASTER.has(dirOf(items[i]))){ idx=i; break; } }
+    if(idx<0){                                  // 正本文件夹里没有这一组
+      noHit++;
+      if(rest){
+        const each=c.mb/c.dups.length;
+        c.dups.forEach(p=>{ if(!MASTER.has(dirOf(p))){SEL.add(p);MB.set(p,each);} });
+      }
+      return;
+    }
+    hit++;
+    if(idx>0){ if(swapKeep(c,idx)) moved++; } else keepSame++;
+    const each=c.mb/c.dups.length;
+    c.dups.forEach(p=>{
+      if(MASTER.has(dirOf(p))){ SEL.delete(p); }        // 正本文件夹里的，一张都不勾
+      else { SEL.add(p); MB.set(p,each); }
+    });
+  }));
+  SEL.forEach(p=>mb+=MB.get(p)||0);
+  render(); updateSel();
+  alert('正本文件夹应用完成\n\n'
+    +'覆盖到 '+hit.toLocaleString()+' 组'
+    +'（其中 '+moved.toLocaleString()+' 组换了正本，'+keepSame.toLocaleString()+' 组本来就是）\n'
+    +(noHit?'正本文件夹里没有的组 '+noHit.toLocaleString()+' 组'
+      +(rest?'（其副本也已勾选）':'（未动，需要可勾上面那个复选框再来一次）')+'\n':'\n')
+    +'\n当前勾选副本 '+SEL.size.toLocaleString()+' 个，可释放 '+fmtMB(mb)
+    +'\n\n接下来点「导出清单 txt」，再用 照片查重.bat 清理。');
+}
+async function loadAllChunks(){
+  const miss=[];
+  for(let i=0;i<IDX.chunks;i++) if(!cache[i]) miss.push(i);
+  // 同上：串行 51 个分片太慢。用 10 路并发的小池子，避免一次开 51 个请求。
+  let k=0;
+  const worker=async()=>{
+    while(k<miss.length){
+      const i=miss[k++];
+      try{
+        await loadScript('g_p'+String(i).padStart(3,'0')+'.js');
+        cache[i]=window.PART[i];
+      }catch(e){ console.warn('分片 '+i+' 加载失败，已跳过：',e); }
+    }
+  };
+  await Promise.all(Array.from({length:Math.min(10,miss.length)},worker));
+}
+/* 一步到位：把这个文件夹作为唯一正本文件夹并立即应用 */
+function quickMaster(dir){
+  if(!confirm('把「'+dir+'」设为正本文件夹？\n\n'
+    +'所有重复组里，凡是这个文件夹有的，就保留它；\n'
+    +'其他文件夹里的同名照片全部勾选为副本。\n\n'
+    +'注意：这会影响全部 '+IDX.total.toLocaleString()+' 组，需要读取全部数据（约几秒）。')) return;
+  MASTER.clear(); MASTER.add(dir); renderMaster();
+  applyMaster();
+}
+
+function loadScript(src){return new Promise((res,rej)=>{
+  let s=document.createElement('script');s.src=src;
+  s.onload=res;s.onerror=()=>rej(new Error('加载失败 '+src));
+  document.head.appendChild(s);});}
+function thumbSrc(i){return 'v2_'+String(i).padStart(5,'0')+'.jpg';}
+function baseName(p){const i=Math.max(p.lastIndexOf('\\'),p.lastIndexOf('/'));return i>=0?p.slice(i+1):p;}
+function dirOf(p){const i=Math.max(p.lastIndexOf('\\'),p.lastIndexOf('/'));return i>0?p.slice(0,i):p;}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+// 坑：体积存的是 MB，显示时除了 1024 就必须改标 GB。
+// 标错单位会让用户把 7.6 GB 看成 7.6 MB，严重低估收益。
+function fmtMB(mb){ return mb>=1024 ? (mb/1024).toFixed(2)+' GB' : mb.toFixed(1)+' MB'; }
+
+async function init(){
+  IDX=await loadData('IDX','g_index.js');
+  FDATA=await loadData('FDATA','g_folders.js');
+  FOLD=FDATA.folders;
+  let tn=0,td=0,tm=0;
+  FOLD.forEach(f=>{tn+=f[1];td+=f[2];tm+=f[3];});
+  document.getElementById('sub').textContent=
+    FOLD.length+' 个文件夹 · '+IDX.total.toLocaleString()+' 组 · '
+    +td.toLocaleString()+' 个副本 · 可释放 '+(tm/1024).toFixed(2)+' GB';
+  initMaster(); renderMaster();
+  render();
+}
+/* 坑：file:// 协议下 fetch 读本地文件会被浏览器 CORS 策略直接拒绝
+   （报错 Failed to fetch），但 <script src> 不受此限制。
+   所以数据一律包成 window.XXX={...} 的 js 文件，用脚本标签加载。
+   曾经这里用 fetch('g_index.json')，用户双击打开永远是「数据加载失败」。 */
+function loadData(varName, src){
+  return new Promise((res,rej)=>{
+    if(window[varName]!==undefined){ res(window[varName]); return; }
+    const s=document.createElement('script');
+    s.src=src;
+    s.onload=()=>{
+      if(window[varName]===undefined) rej(new Error(src+' 已加载但没有 '+varName));
+      else res(window[varName]);
+    };
+    s.onerror=()=>rej(new Error(src+' 加载失败，确认文件与本页在同一目录'));
+    document.head.appendChild(s);
+  });
+}
+async function ensureCluster(g){
+  const c=Math.floor(g/IDX.chunk);
+  if(!cache[c]){await loadScript('g_p'+String(c).padStart(3,'0')+'.js');cache[c]=window.PART[c];}
+  return cache[c][g-c*IDX.chunk];
+}
+async function ensureMany(gis, onprog){
+  const miss=[...new Set(gis.map(g=>Math.floor(g/IDX.chunk)))].filter(c=>!cache[c]);
+  if(miss.length){
+    // 坑：原来是一个个 await 串行加载，一个文件夹动辄 48 个分片，
+    // 串行走下来十几秒界面毫无反应 —— 用户就认定这个按钮是坏的
+    // （顶部「勾选全部副本」有「正在全选…」提示所以显得正常，差别就在反馈）。
+    // 改成并发后基本一秒内完成。
+    let doneN=0;
+    await Promise.all(miss.map(async c=>{
+      await loadScript('g_p'+String(c).padStart(3,'0')+'.js');
+      cache[c]=window.PART[c];
+      if(onprog) onprog(++doneN,miss.length);
+    }));
+  }
+  return gis.map(g=>cache[Math.floor(g/IDX.chunk)][g-Math.floor(g/IDX.chunk)*IDX.chunk]);
+}
+
+function render(){
+  let H='';
+  FOLD.forEach((f,fi)=>{
+    const [dir,nclus,ndup,mb]=f;
+    const op=curOpen.has(fi);
+    H+='<div class="fd'+(op?'':' fold')+'" id="fd'+fi+'">';
+    H+='<div class="hd" onclick="togF('+fi+')">';
+    H+='<span style="color:#8b949e;font-size:11px">'+(op?'▼':'▶')+'</span>';
+    H+='<span class="nm">'+esc(dir)+'</span>';
+    H+='<span class="tag m">'+nclus+' 组</span>';
+    H+='<span class="tag d">'+ndup+' 个副本 / '+fmtMB(mb)+'</span>';
+    H+='</div>';
+    H+='<div class="acts" style="padding:8px 13px;background:#fcfcfd;border-bottom:1px solid #eceff2;gap:6px">'
+      +'<span class="btn pri" onclick="quickMaster(\''+dir.replace(/\\/g,'\\\\').replace(/'/g,"\\'")+'\')">★ 只保留此文件夹（应用）</span>'
+      +'<span class="btn grn'+(ndup?'':' off')+'" onclick="selFolder('+fi+',true)">'
+        +'全选本文件夹副本'+(ndup?'（'+ndup+' 个）':'（无副本）')+'</span>'
+      +'<span class="btn gry" onclick="selFolder('+fi+',false)">取消本文件夹</span>'
+      +'<span class="btn'+(ndup?'':' off')+(ONLYMINE.has(fi)?' on':'')+'" onclick="togMine('+fi+')">'
+        +(ONLYMINE.has(fi)?'✓ ':'')+'只看我的副本（'+ndup+'）</span>'
+      +'<span class="btn" onclick="keepFolder('+fi+')">本文件夹设为正本</span>'
+      +'<span class="btn" onclick="expFolderPhotos('+fi+')">展开全部照片</span>'
+      +'<span class="btn" onclick="collapseFolderPhotos('+fi+')">收起全部照片</span>'
+      +'<span class="btn" onclick="expFolder('+fi+')">导出本文件夹清单(txt)</span>'
+      +'<span class="bs" id="bs'+fi+'"></span>'
+      +'</div>';
+    H+='<div class="body" id="fb'+fi+'">';
+    H+= op ? '<div class="load"><span class="spin"></span>加载中…</div>' : '';
+    H+='</div></div>';
+  });
+  document.getElementById('list').innerHTML=H;
+  FOLD.forEach((f,fi)=>{ if(curOpen.has(fi)) drawFolder(fi,false,false); });
+}
+
+async function togF(fi){
+  if(curOpen.has(fi)) curOpen.delete(fi); else curOpen.add(fi);
+  render();
+}
+function togMine(fi){
+  const ndup=FOLD[fi][2];
+  if(!ndup){
+    setDone(fi,'这里全是正本，没有副本','warn');
+    alert('「'+FOLD[fi][0]+'」里没有副本，这个视图是空的。\n\n'
+      +'它在 '+FOLD[fi][1]+' 组重复里拿的都是正本。'
+      +dupWhereText(FOLD[fi][0])
+      +'\n\n要清别处的同名图，请点「★ 只保留此文件夹（应用）」。');
+    return;
+  }
+  if(ONLYMINE.has(fi)) ONLYMINE.delete(fi); else ONLYMINE.add(fi);
+  curOpen.add(fi);          // 顺手展开，否则切换了也看不见
+  render();
+}
+/* 坑：每文件夹显示开到 300 / 全部时，一个大文件夹就是几千张卡片，
+   一次性 innerHTML 会把主线程锁死好几秒，看着像卡死（41.7MB 单页卡死的翻版）。
+   改成分批插入 + 进度提示，每批让出一次主线程。 */
+/* 坑：render() 不 await drawFolder，快速切换档位或重复展开时会有两次渲染
+   同时往同一个框里 insertAdjacentHTML，条目直接翻倍。
+   用递增令牌：后发起的渲染让先前那次自动退出。 */
+/* 展开一个文件夹时，先把「这个文件夹在这批重复里是什么角色」写在最上面，
+   免得用户看到「副本」卡片就以为副本在这里。 */
+function folderNoteHTML(fi){
+  const [dir,nclus,ndup]=FOLD[fi];
+  const fs=(FDATA.fstat||{})[dir];
+  if(!fs) return '';
+  const dest=Object.entries(fs.dest||{}).sort((a,b)=>b[1]-a[1]);
+  if(!ndup){
+    const ds=dest.slice(0,3).map(e=>'「'+e[0]+'」（'+e[1]+' 个）').join('、')
+      +(dest.length>3?' 等 '+dest.length+' 个文件夹':'');
+    return '<div class="fnote warn"><b>这个文件夹没有副本可勾，按钮发灰是对的。</b><br>'
+      +'它参与的 '+nclus+' 组重复里，每组的<b>正本都在它这里</b>'
+      +(dest.length?('；副本都在 '+ds+'。'):'。')
+      +'下面每组也会显示那些副本的卡片，但注意看卡片上的位置标记——都是【他处】。<br>'
+      +'要清掉别处的同名图 → 点上面的「<b>★ 只保留此文件夹（应用）</b>」，会把它们全部勾出来。'
+      +'</div>';
+  }
+  return '<div class="fnote info">这个文件夹涉及 <b>'+nclus+' 组</b>重复：'
+    +'持有 <b>'+fs.keep+' 组的正本</b>、<b>'+ndup+' 个副本</b>。'
+    +'卡片上的位置标记：橙字【本文件夹】= 照片在这里，紫字【他处】= 在别的文件夹。'
+    +'「全选本文件夹副本」只勾【本文件夹】的那些。</div>';
+}
+/* 零副本弹窗里说明副本具体在哪个文件夹 */
+function dupWhereText(dir){
+  const fs=(FDATA.fstat||{})[dir];
+  if(!fs) return '';
+  const dest=Object.entries(fs.dest||{}).sort((a,b)=>b[1]-a[1]);
+  if(!dest.length) return '';
+  return '\n\n副本都在：\n'
+    +dest.slice(0,5).map(e=>'  · '+e[0]+'（'+e[1]+' 个）').join('\n')
+    +(dest.length>5?'\n  · ……等 '+dest.length+' 个文件夹':'');
+}
+let FTOK={};
+async function drawFolder(fi, showAll, openClusters){
+  const my=(FTOK[fi]=(FTOK[fi]||0)+1);
+  const alive=()=>my===FTOK[fi];
+  const dir=FOLD[fi][0];
+  // 「只看我的副本」时用 dupIdx——只列我持有副本的组，勾选效果立刻看得见
+  let gis=FDATA.byFolder[dir]||[];
+  if(ONLYMINE.has(fi)) gis=(FDATA.dupIdx&&FDATA.dupIdx[dir])||[];
+  const show= showAll ? gis : gis.slice(0,PERF);
+  const box=document.getElementById('fb'+fi);
+  box.innerHTML='<div class="load" id="fbLd'+fi+'"><span class="spin"></span>读取数据中…</div>';
+  box.insertAdjacentHTML('beforeend',folderNoteHTML(fi));
+  const cs=await ensureMany(show);
+  if(!alive()) return;
+  const ld=document.getElementById('fbLd'+fi);
+  if(ld) ld.innerHTML='<span class="spin"></span>正在渲染 0 / '+cs.length+' 组…';
+  const BATCH=40;
+  let i=0;
+  await new Promise(res=>{
+    (function chunk(){
+      if(!alive()){ res(); return; }
+      const end=Math.min(i+BATCH,cs.length);
+      let s='';
+      for(;i<end;i++){
+        const gi=gis[i], c=cs[i];
+        if(!c) continue;
+        s+='<div class="cl'+(openClusters?'':' fold')+'" id="cl'+fi+'_'+i+'">'
+          +'<div class="chd" onclick="togC('+fi+','+i+')"><span style="color:#8b949e">'+(openClusters?'▼':'▶')+'</span>'
+          +'<span class="nm">'+esc(baseName(c.keeppath))+'</span>'
+          +'<span class="tag">'+c.dups.length+' 个副本 / '+c.mb.toFixed(1)+' MB</span></div>'
+          +'<div class="body">'+itHTML(gi,c,0,dir);
+        c.dups.forEach((p,j)=>{ s+=itHTML(gi,c,j+1,dir); });
+        s+='</div></div>';
+      }
+      box.insertAdjacentHTML('beforeend',s);
+      if(i<cs.length){
+        if(ld) ld.innerHTML='<span class="spin"></span>正在渲染 '+i+' / '+cs.length+' 组…';
+        setTimeout(chunk,0);
+      } else res();
+    })();
+  });
+  if(!alive()) return;
+  if(ld) ld.remove();
+  if(gis.length>PERF && !showAll)
+    box.insertAdjacentHTML('beforeend',
+      '<div style="color:#656d76;font-size:12px;padding:6px 2px">'
+      +'… 该文件夹共 '+gis.length+' 组，当前显示前 '+PERF+' 组（上面「每文件夹显示」可调整；或点「展开全部照片」看全部）</div>');
+}
+function togC(fi,k){document.getElementById('cl'+fi+'_'+k).classList.toggle('fold');}
+
+function itHTML(gi,c,k,dir){
+  const isKeep=(k===0);
+  const p=isKeep?c.keeppath:c.dups[k-1];
+  const t=isKeep?c.kt:c.dt[k-1];
+  const s=isKeep?KEEPSEL.has(p):SEL.has(p);
+  const here=(dirOf(p)===dir)?' here':'';
+  const id='it_'+gi+'_'+k;
+  let H='<div class="it '+(isKeep?'keep':'dup')+(s?(isKeep?' ksel':' sel'):'')+here+'" id="'+id+'">';
+  H+='<div class="box" onclick="viewC('+gi+','+k+')" title="点击放大原图">'
+    +'<img loading="lazy" src="'+thumbSrc(t)+'" alt="" onerror="this.style.visibility=\'hidden\'">'
+    +'<span class="role">'+(isKeep?'正本':'副本')+'</span></div>';
+  // 右侧信息栏：文件名 / 位置 / 完整路径（横向铺开）/ 勾选框
+  H+='<div class="info">';
+  H+='<div class="cap">'+esc(baseName(p))+'</div>';
+  // 位置必须写成文字，光一个橙色描边用户根本注意不到
+  H+='<div class="dir" title="'+esc(dirOf(p))+'">'
+    +(here?'<span class="hl">【本文件夹】</span>':'<span class="el">【他处】</span>')
+    +esc(dirOf(p))+'</div>';
+  // 完整路径单独一行，点击即复制——核对「保留/移出」时直接就能用
+  H+='<div class="fp" title="点击复制这条完整路径" onclick="copyOne(this)">'+esc(p)+'</div>';
+  if(isKeep){
+    H+='<div class="chk"><input type="radio" checked disabled>当前正本</div>';
+    H+='<div class="chk" onclick="togKeep('+gi+')"><input type="checkbox"'+(s?' checked':'')+'>选中正本</div>';
+  }else{
+    H+='<div class="chk" onclick="makeKeep('+gi+','+k+')"><input type="radio" name="kp'+gi+'">设为正本</div>';
+    H+='<div class="chk" onclick="tog('+gi+','+k+')"><input type="checkbox"'+(s?' checked':'')+'>移出（清理）</div>';
+  }
+  H+='</div>';
+  return H+'</div>';
+}
+
+function swapKeep(c,k){
+  if(!k||k<=0) return false;
+  const nk=c.dups[k-1], ok=c.keeppath;
+  if(SEL.has(nk)) SEL.delete(nk);
+  const ol=c.klink, ot=c.kt;
+  c.keeppath=nk; c.klink=c.dlinks[k-1]; c.kt=c.dt[k-1];
+  c.dups[k-1]=ok; c.dlinks[k-1]=ol; c.dt[k-1]=ot;
+  const each=c.mb/c.dups.length;
+  c.dups.forEach(p=>MB.set(p,each));
+  return true;
+}
+async function makeKeep(gi,k){
+  const c=await ensureCluster(gi);
+  if(!swapKeep(c,k)) return;
+  let done=false;
+  FOLD.forEach((f,fi)=>{ if(curOpen.has(fi)&&!done){       if((FDATA.byFolder[f[0]]||[]).includes(gi)){drawFolder(fi,false,false);done=true;} } });
+  updateSel();
+}
+function tog(gi,k){ensureCluster(gi).then(c=>{
+  const p=c.dups[k-1];
+  if(SEL.has(p)) SEL.delete(p); else{SEL.add(p);MB.set(p,c.mb/c.dups.length);}
+  paint(gi,k,p); updateSel();});}
+function togKeep(gi){ensureCluster(gi).then(c=>{
+  const p=c.keeppath;
+  if(KEEPSEL.has(p)) KEEPSEL.delete(p); else KEEPSEL.add(p);
+  paint(gi,0,p); updateSel();});}
+function paint(gi,k,p){
+  FOLD.forEach((f,fi)=>{ if(!curOpen.has(fi)) return;
+    const el=document.getElementById('it_'+gi+'_'+k); if(!el) return;
+    const on=SEL.has(p)||KEEPSEL.has(p);
+    el.classList.toggle('sel', k>0&&on); el.classList.toggle('ksel', k===0&&on);
+    const cb=el.querySelector('input[type=checkbox]'); if(cb) cb.checked=on;});
+}
+
+/* 坑：一个文件夹的重复组平均分散在 30~50 个分片里，点一下要现加载 4~6MB，
+   几秒钟界面毫无反应，用户就以为按钮坏了（顶部「勾选全部副本」有提示所以正常，
+   文件夹级的没有——区别就在这）。必须点下去立刻给反馈。 */
+function setBusy(fi,txt,cls){
+  const el=document.getElementById('bs'+fi);
+  if(!el) return;
+  el.className='bs'+(cls?' '+cls:'');
+  el.innerHTML=txt?('<span class="spin"></span>'+txt):'';
+}
+function setDone(fi,txt,cls){
+  const el=document.getElementById('bs'+fi);
+  if(!el) return;
+  el.className='bs'+(cls?' '+cls:' done');
+  el.textContent=txt||'';
+  setTimeout(()=>{ if(el.textContent===txt) { el.textContent=''; el.className='bs'; } },6000);
+}
+async function selFolder(fi,on){
+  const dir=FOLD[fi][0], ndup=FOLD[fi][2];
+  if(on && !ndup){
+    // 152 个文件夹里有 55 个副本数是 0：里面的照片全是正本，副本都在别处
+    setDone(fi,'这里全是正本，没有副本','warn');
+    alert('「'+dir+'」里没有可勾选的副本。\n\n'
+      +'这个文件夹参与了 '+FOLD[fi][1]+' 组重复，每组的正本都在它这里。'
+      +dupWhereText(dir)
+      +'\n\n你展开后看到的「副本」卡片，实际位置都在上面这些文件夹里（卡片上有【他处】标记）。\n'
+      +'要清掉别处的同名图：点本行的「★ 只保留此文件夹（应用）」。');
+    return;
+  }
+  setBusy(fi,on?'正在准备…':'正在取消…');
+  const gis=FDATA.byFolder[dir]||[];
+  const cs=await ensureMany(gis,(d,t)=>setBusy(fi,'读取分片 '+d+'/'+t+'…'));
+  let n=0;
+  cs.forEach(c=>{
+    if(!c) return;
+    c.dups.forEach(p=>{
+      if(dirOf(p)!==dir) return;               // 只处理落在本文件夹里的副本
+      if(on){SEL.add(p);MB.set(p,c.mb/c.dups.length);n++;} else SEL.delete(p);
+    });
+  });
+  if(curOpen.has(fi)) await drawFolder(fi,false,false);
+  updateSel();
+  setDone(fi, on
+    ? ('已勾选 '+n+' 个'+(curOpen.has(fi)?'':' · 点「只看我的副本」查看'))
+    : ('已取消 '+ndup+' 个'));
+}
+async function keepFolder(fi){
+  const dir=FOLD[fi][0];
+  setBusy(fi,'正在准备…');
+  const cs=await ensureMany(FDATA.byFolder[dir]||[],(d,t)=>setBusy(fi,'读取分片 '+d+'/'+t+'…'));
+  let n=0,a=0;
+  cs.forEach(c=>{
+    if(!c) return;
+    const items=[c.keeppath].concat(c.dups);
+    const idx=items.findIndex(p=>dirOf(p)===dir);
+    if(idx>0){ if(swapKeep(c,idx)) n++; } else if(idx===0) a++;
+  });
+  if(curOpen.has(fi)) await drawFolder(fi,false,false);
+  updateSel();
+  setDone(fi,'换了 '+n+' 组正本');
+  alert('「'+dir+'」\n设为本文件夹正本：'+n+' 组\n本来就是正本：'+a+' 组');
+}
+async function expFolder(fi){
+  const dir=FOLD[fi][0];
+  // 和「全选本文件夹副本」一样：副本为 0 的文件夹没什么可导，先说清楚
+  if(!FOLD[fi][2]){
+    setDone(fi,'这里全是正本，没有副本','warn');
+    alert('「'+dir+'」里没有副本，导出会是空清单。'+dupWhereText(dir)
+      +'\n\n要清别处的同名图，请点「★ 只保留此文件夹（应用）」。');
+    return;
+  }
+  setBusy(fi,'正在准备…');
+  const cs=await ensureMany(FDATA.byFolder[dir]||[],(d,t)=>setBusy(fi,'读取分片 '+d+'/'+t+'…'));
+  const L=['A类文件夹处理清单   文件夹: '+dir,'生成时间: '+new Date().toLocaleString('zh-CN'),'='.repeat(60)];
+  let n=0,mb=0;
+  cs.forEach(c=>{ if(!c) return;
+    // 每组先给出要保留的正本完整路径，再列本文件夹里的副本，便于逐组核对
+    let keepShown=false;
+    c.dups.forEach(p=>{
+      if(dirOf(p)!==dir) return;
+      if(!keepShown){ L.push('[保留] '+c.keeppath); keepShown=true; }
+      L.push('[移出] '+p); n++; mb+=MB.get(p)||c.mb/c.dups.length;
+    });
+  });
+  L.push('='.repeat(60));
+  L.push('合计 '+n+' 个副本，可释放 '+fmtMB(mb));
+  L.push('说明: 同组像素已抽样验证完全一致，移出副本不影响正本。');
+  L.push('核对方法: 每组第一行 [保留] 是该组要保留的正本完整路径，仅供核对；清理只动 [移出] 行。');
+  const t=L.join('\n');
+  // 坑：原来只走剪贴板，file:// 下被拒就静默失败（顶部全量导出走下载所以一直正常）。
+  // 现在下载为主、剪贴板为辅，两条路都不会空手而归。
+  // 文件名必须仍含「处理清单」，否则批处理菜单[5]的自动查找（*处理清单*.txt）找不到它
+  const fn='A类重复照片处理清单_'+safeName(baseName(dir))+'.txt';
+  downloadText(fn, t);
+  const okc=await copyText(t);
+  setDone(fi,'已导出 '+n+' 条');
+  alert('本文件夹清单已导出 '+n+' 条，可释放 '+fmtMB(mb)+'\n\n'
+    +'文件：'+fn+'（在浏览器的下载目录里）\n'
+    +'剪贴板：'+(okc?'也已复制，可直接粘贴':'不可用，已用下载方式'));
+}
+/* 每个文件夹「一键展开全部照片」：绕过「每文件夹显示」限制，渲染该文件夹全部重复组，
+   且每组正副本照片默认就铺开（cl 不加 fold），省去一组一组点开。
+   仍走 drawFolder 的分批渲染，组数很多也不卡。 */
+async function expFolderPhotos(fi){
+  curOpen.add(fi);
+  const fd=document.getElementById('fd'+fi);
+  if(fd) fd.classList.remove('fold');     // 文件夹在视觉上先展开
+  const dir=FOLD[fi][0];
+  const gis=FDATA.byFolder[dir]||[];
+  if(!gis.length){ setDone(fi,'这个文件夹没有重复组'); return; }
+  setBusy(fi,'正在展开全部照片…');
+  await drawFolder(fi, true, true);
+  setDone(fi,'已展开全部 '+gis.length+' 组照片');
+}
+/* 每个文件夹「一键收起全部照片」：与展开对称——全部重复组仍列出来（组标题可见），
+   但每组内的正副本照片全部收起，只留组头部的文件名/副本数，免得照片铺满屏。 */
+async function collapseFolderPhotos(fi){
+  curOpen.add(fi);
+  const fd=document.getElementById('fd'+fi);
+  if(fd) fd.classList.remove('fold');     // 文件夹在视觉上先展开
+  const dir=FOLD[fi][0];
+  const gis=FDATA.byFolder[dir]||[];
+  if(!gis.length){ setDone(fi,'这个文件夹没有重复组'); return; }
+  setBusy(fi,'正在收起全部照片…');
+  await drawFolder(fi, true, false);
+  setDone(fi,'已收起全部 '+gis.length+' 组照片');
+}
+async function selAll(on){
+  document.getElementById('list').innerHTML=
+    '<div class="load"><span class="spin"></span>'+(on?'正在全选':'正在清除')+'…</div>';
+  await loadAllChunks();
+  Object.values(cache).forEach(arr=>arr.forEach(c=>c.dups.forEach(p=>{
+    if(on){SEL.add(p);MB.set(p,c.mb/c.dups.length);} else SEL.delete(p);})));
+  render(); updateSel();
+  if(on){
+    let mb=0; SEL.forEach(p=>mb+=MB.get(p)||0);
+    alert('已勾选全部副本：'+SEL.size.toLocaleString()+' 个\n可释放 '+fmtMB(mb)
+      +'\n\n接下来点「导出清单 txt」即可生成清理清单（或点「复制路径」）。');
+  }
+}
+function updateSel(){
+  let mb=0; SEL.forEach(p=>mb+=MB.get(p)||0);
+  setN('selN', SEL.size.toLocaleString());
+  setN('selMB', fmtMB(mb));
+  setN('keepN', KEEPSEL.size.toLocaleString());
+}
+// 数字变化时闪一下绿底：折叠状态下这是唯一能证明「确实勾上了」的视觉信号
+function setN(id, txt){
+  const el=document.getElementById(id);
+  if(!el || el.textContent===txt) return;
+  el.textContent=txt;
+  el.classList.add('flash');
+  setTimeout(()=>{ el.classList.remove('flash'); }, 900);
+}
+function expandAll(on){
+  if(on){
+    let est=0; FOLD.forEach(f=>est+=Math.min(PERF,f[1]));
+    // 坑：每文件夹 300 组 × 152 个文件夹 = 两万多张卡片，会直接卡死。先拦一道。
+    if(est>3000 && !confirm(
+        '即将展开 '+FOLD.length+' 个文件夹、约 '+est.toLocaleString()+' 组。\n'
+        +'一次渲染这么多卡片，浏览器可能会卡住十几秒甚至无响应。\n\n'
+        +'建议：把「每文件夹显示」调回 10~50，或者不展开全部、\n'
+        +'只手动点开你真正要处理的那几个文件夹。\n\n'
+        +'仍要继续吗？')) return;
+    FOLD.forEach((f,i)=>curOpen.add(i));
+  } else curOpen.clear();
+  render();
+}
+async function listText(){
+  await loadAllChunks();   // 确保全部分片已加载
+  const L=['A类重复照片处理清单   生成时间: '+new Date().toLocaleString('zh-CN'),'='.repeat(60)];
+  let n=0,mb=0;
+  // 按预览顺序：文件夹（FOLD 顺序）→ 组内（gis 顺序）→ 副本（c.dups 顺序）
+  FOLD.forEach((f)=>{
+    const dir=f[0];
+    const gis=FDATA.byFolder[dir]||[];
+    const lines=[];
+    gis.forEach(gi=>{
+      // 坑：cache[分片号] 取到的是「整个分片的数组」，不是「这一组」；
+      // 必须再按 gi-分片号*每组数 从数组里取出该组，否则 c.dups 是 undefined。
+      const ch=Math.floor(gi/IDX.chunk);
+      const arr=cache[ch];
+      if(!arr) return;
+      const c=arr[gi-ch*IDX.chunk];
+      if(!c||!c.dups) return;
+      // 每组一旦有勾选移出，先把该组「保留」的正本完整路径写出来，
+      // 用户才能拿着两条路径去核对（以前只有 [移出]，没法对账）。
+      // apply_cleanup.py 本来就认 [保留] 行，还会查「正本与移出冲突」，正好用上。
+      let keepShown=false;
+      c.dups.forEach(p=>{
+        // 组会同时挂在「正本文件夹」和「副本文件夹」多个名下，不按路径过滤会把同一副本重复计入多个文件夹段
+        if(dirOf(p)!==dir) return;
+        if(SEL.has(p)){
+          if(!keepShown){ lines.push('[保留] '+c.keeppath); keepShown=true; }
+          lines.push('[移出] '+p); n++; mb+=MB.get(p)||(c.mb/c.dups.length);
+        }
+      });
+    });
+    if(lines.length){ L.push(''); L.push('--- '+dir+' ---'); for(const s of lines) L.push(s); }
+  });
+  L.push('');L.push('='.repeat(60));
+  L.push('合计 '+n+' 个副本，可释放 '+fmtMB(mb));
+  L.push('说明: 同组像素已抽样验证完全一致，移出副本不影响正本。');
+  L.push('核对方法: 每组第一行 [保留] 是该组要保留的正本完整路径，仅供核对；清理只动 [移出] 行。');
+  L.push('（清单按预览顺序：文件夹 → 组内 → 副本）');
+  return L.join('\n');
+}
+/* 坑：file:// 下 navigator.clipboard 常常被拒（不是安全上下文 / 没有用户手势）。
+   原来写成 `navigator.clipboard.writeText(t); return;` ——
+   没 await，Promise 一 reject 就已经 return 了，execCommand 兜底永远跑不到，
+   于是「导出本文件夹清单」点了什么都没发生、也不报错；
+   而顶部「导出清单 txt」走的是 Blob 下载，所以一直正常。
+   改成：await 拿结果，失败退回 execCommand，再失败返回 false 由调用方改走下载。 */
+async function copyText(t){
+  try{
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(t);
+      return true;
+    }
+  }catch(e){}
+  try{
+    const b=document.createElement('textarea');
+    b.value=t;
+    b.style.position='fixed'; b.style.opacity='0';
+    document.body.appendChild(b);
+    b.select();
+    const okr=document.execCommand('copy');
+    document.body.removeChild(b);
+    return !!okr;
+  }catch(e){}
+  return false;
+}
+/* 下载 txt：file:// 下唯一稳定可靠的导出方式 */
+function downloadText(name, t){
+  const blob=new Blob(['\ufeff'+t],{type:'text/plain;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000);
+  return true;
+}
+/* 文件夹名里可能有 Windows 文件名不允许的字符 */
+function safeName(s){
+  return String(s).replace(/[\\/:*?"<>|]/g,'_').slice(-60);
+}
+async function copyList(){
+  if(!SEL.size){alert('还没有勾选任何副本');return;}
+  const t=await listText();
+  const okc=await copyText(t);
+  if(okc){ alert('已复制 '+SEL.size+' 条，可直接粘贴'); }
+  else{
+    downloadText('A类重复照片处理清单.txt', t);
+    alert('剪贴板不可用（浏览器限制），已改为下载 txt：A类重复照片处理清单.txt\n共 '+SEL.size+' 条');
+  }
+}
+/* 点击单条完整路径 → 复制。file:// 下 clipboard 常被拒，
+   与 copyText 同套路：await 拿结果，失败就只改标题提示手动复制。 */
+async function copyOne(el){
+  const ok=await copyText(el.textContent);
+  if(ok){
+    el.style.borderColor='#1f8833'; el.style.background='#f0fff4';
+    const old=el.title; el.title='已复制 ✓';
+    setTimeout(()=>{el.style.borderColor='';el.style.background='';el.title=old;},900);
+  } else {
+    const old=el.title; el.title='复制失败，请手动选中路径文字复制';
+    setTimeout(()=>{el.title=old;},1500);
+  }
+}
+async function saveList(){
+  if(!SEL.size){alert('还没有勾选任何副本');return;}
+  const tag=document.getElementById('mTags'); const old=tag?tag.textContent:'';
+  if(tag) tag.textContent='正在生成全量清单（首次需加载分片，请稍候几秒）…';
+  let t;
+  try{ t=await listText(); }
+  catch(e){ alert('生成清单出错：'+(e&&e.message||e)); if(tag)tag.textContent=old; return; }
+  if(tag) tag.textContent=old;
+  // 主路径：触发浏览器下载（与“本文件夹”导出同款机制）
+  downloadText('A类重复照片处理清单.txt', t);
+  // 兜底：同时复制到剪贴板，防止个别浏览器在无手势/拦截时下载无反应
+  let mb=0; SEL.forEach(p=>mb+=MB.get(p)||0);
+  const okc=await copyText(t);
+  alert('清单已生成 '+SEL.size.toLocaleString()+' 条，可释放 '+fmtMB(mb)+'\n'
+    +(okc?'已同时复制到剪贴板，可直接粘贴到记事本另存为 txt。'
+          :'已尝试下载（A类重复照片处理清单.txt）；如未出现，请查看浏览器下载栏。'));
+}
+
+/* ---------- 放大预览 ----------
+   坑：原图 5~25MB，直接 img.src=原图 会黑屏十几秒，用户以为点了没反应。
+   改为：缩略图立刻顶上（模糊但马上有画面）→ 后台加载原图 → 加载完淡入覆盖。
+   mTok 防止快速翻页时先加载完的旧图盖掉新图。 */
+let mList=[], mIdx=0, mGi=-1, mTok=0;
+async function viewC(gi,k){
+  const c=await ensureCluster(gi);
+  mGi=gi;
+  mList=[{p:c.keeppath,l:c.klink,t:c.kt}];
+  c.dups.forEach((p,j)=>mList.push({p:p,l:c.dlinks[j],t:c.dt[j]}));
+  mIdx=k; showM();
+}
+function mdlOpen(){return document.getElementById('mdl').classList.contains('show');}
+function showM(){
+  const it=mList[mIdx]; if(!it) return;
+  const tok=++mTok;
+  const ph=document.getElementById('mPh'), img=document.getElementById('mImg');
+  const ld=document.getElementById('mLd'), bad=document.getElementById('mBad');
+  document.getElementById('mdl').classList.add('show');
+  bad.style.display='none'; ld.style.display=''; ld.innerHTML='<span class="spin"></span>正在加载原图…';
+  // 1) 立刻铺一张缩略图，先让用户看到东西
+  ph.src=thumbSrc(it.t);
+  ph.style.opacity='1';
+  img.style.opacity='0';
+  img.removeAttribute('src');
+  // 2) 后台拉原图
+  const pre=new Image();
+  pre.onload=()=>{ if(tok!==mTok) return;
+    img.src=it.l; img.style.opacity='1';
+    ph.style.opacity='0'; ld.style.display='none'; };
+  pre.onerror=()=>{ if(tok!==mTok) return;
+    ld.style.display='none';
+    bad.style.display='';
+    // 缩略图保持可见（放大的糊版），只在底部挂一条提示，不挡画面
+    bad.innerHTML='原图没能显示（RAW/HEIC 格式，或浏览器禁止网页读取本地文件）'
+      +'<br>下方是缩略图放大版。要高清请 '
+      +'<a href="'+it.l+'" target="_blank">用系统默认程序打开</a>'
+      +'　·　换 Edge / Chrome 打开本页可直接看原图';
+  };
+  pre.src=it.l;
+  // 3) 超过 6 秒还没好，说一声，别让人干等
+  setTimeout(()=>{ if(tok===mTok && ld.style.display!=='none')
+    ld.innerHTML='<span class="spin"></span>原图较大，仍在加载…（可先按 → 看下一张）'; },6000);
+  // 4) 文字信息 + 操作
+  document.getElementById('mMeta').innerHTML=
+    '<b style="color:'+(mIdx===0?'#7ee787':'#ffb3b3')+'">'
+    +(mIdx===0?'正本':'副本')+'</b>　'+(mIdx+1)+' / '+mList.length
+    +'<br><span style="color:#aaa">'+esc(it.p)+'</span>';
+  let A='';
+  if(mIdx>0){
+    A+='<span class="btn grn" onclick="mMakeKeep()">把这张设为正本</span>';
+    const on=SEL.has(it.p);
+    A+='<span class="btn '+(on?'red':'')+'" onclick="mTog()">'+(on?'取消勾选':'勾选移出（清理）')+'</span>';
+  }
+  A+='<span class="btn" onclick="window.open(\''+it.l+'\')">用默认程序打开</span>';
+  A+='<span class="btn" onclick="closeM()">关闭</span>';
+  document.getElementById('mActs').innerHTML=A;
+}
+function navM(d){ mIdx=(mIdx+d+mList.length)%mList.length; showM(); }
+async function mMakeKeep(){
+  if(mGi<0||mIdx<=0) return;
+  const c=await ensureCluster(mGi);
+  swapKeep(c,mIdx);
+  viewC(mGi,0);
+  let done=false;
+  FOLD.forEach((f,fi)=>{ if(curOpen.has(fi)&&!done){ if((FDATA.byFolder[f[0]]||[]).includes(mGi)){drawFolder(fi,false,false);done=true;} } });
+  updateSel();
+}
+function mTog(){
+  const it=mList[mIdx]; if(!it||mIdx<=0) return;
+  if(SEL.has(it.p)) SEL.delete(it.p); else SEL.add(it.p);
+  let done=false;
+  FOLD.forEach((f,fi)=>{ if(curOpen.has(fi)&&!done){ if((FDATA.byFolder[f[0]]||[]).includes(mGi)){drawFolder(fi,false,false);done=true;} } });
+  updateSel(); showM();
+}
+function closeM(){ mTok++; document.getElementById('mdl').classList.remove('show'); }
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('mdl').classList.contains('show'))return;
+  if(e.key==='Escape')closeM();
+  else if(e.key==='ArrowLeft')navM(-1);
+  else if(e.key==='ArrowRight')navM(1);
+});
+
+init().catch(e=>{
+  document.getElementById('list').innerHTML=
+    '<div class="load" style="color:#bc4c00">数据加载失败：'+esc(e.message)
+    +'<br><br>请确认 g_index.js / g_folders.js / g_p*.js / t\\ 与本页在同一目录。</div>';
+});
+</script>
+</body>
+</html>
