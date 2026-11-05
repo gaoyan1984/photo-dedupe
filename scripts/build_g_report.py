@@ -254,9 +254,14 @@ def main():
     def bc_list(src, tids):
         out = []
         for r, (kt, dt) in zip(src, tids):
+            # 末尾追加「移出文件大小（字节）」，供报告页勾选后统计可释放容量
+            try:
+                sz = int(round(float(r['单张大小KB']) * 1024))
+            except Exception:
+                sz = 0
             out.append([file_rel(r['保留路径']), r['保留文件'],
                         file_rel(r['重复文件路径']), r['重复文件名'],
-                        r['所在文件夹'], kt, dt])
+                        r['所在文件夹'], kt, dt, sz])
         return out
 
     blist = bc_list(diff, b_tids)

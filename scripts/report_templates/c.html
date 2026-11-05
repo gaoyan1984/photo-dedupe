@@ -25,32 +25,49 @@ h1{font-size:20px;margin:0 0 4px}
 .btn.gry{background:#6e7781;color:#fff;border-color:#6e7781}
 .stat{font-size:13px;color:#57606a}
 .stat b{color:#0969da;font-size:16px}
-.rowitem{display:flex;align-items:center;gap:12px;padding:8px 12px;
-  border:1px solid #e4e8ec;border-radius:8px;background:#fff;margin-bottom:6px;font-size:12.5px}
-.rowitem.sel{background:#fff5f5;border-color:#cf222e}
-.rowitem .one{display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0}
-.rowitem .one img{width:72px;height:72px;object-fit:cover;border-radius:5px;
-  border:1px solid #d8dee4;cursor:pointer;background:#f0f2f4;display:block}
-.rowitem .one img:hover{border-color:#0969da}
-.rowitem .pair{display:flex;gap:10px;flex-shrink:0;align-items:flex-end}
-.rowitem .lb{font-size:10px;padding:1px 5px;border-radius:3px;font-weight:600}
-.rowitem .lb.k{background:#dafbe1;color:#1f8833}
-.rowitem .lb.d{background:#ffebe9;color:#cf222e}
-.rowitem .fn{font-size:10px;color:#656d76;max-width:72px;word-break:break-all;
-  line-height:1.25;max-height:26px;overflow:hidden;text-align:center}
-/* 完整路径单独一行：等宽字体 + 可点击复制。
-   以前只显示文件名和所在文件夹，用户想核对「保留/移出」时没有整条路径可用。 */
-.rowitem .fp{font-size:10px;color:#24292f;word-break:break-all;
+/* 每张对比项 = 一个分组：可折叠标题栏 + 下方一行横排卡片（保留 / 移出）。
+   卡片用 flex:1 等分宽度，整行不换行、不超出页面宽度，长路径在卡片内自动换行。 */
+.rowitem{border:1px solid #e4e8ec;border-radius:8px;background:#fff;margin-bottom:8px;font-size:12.5px;overflow:hidden}
+.rowitem.sel{border-color:#cf222e}
+.rowitem .ghead{display:flex;align-items:center;gap:8px;padding:7px 11px;
+  background:#eef1f4;cursor:pointer;user-select:none}
+.rowitem .ghead:hover{background:#e3e7eb}
+.rowitem .gtog{font-size:11px;color:#57606a;width:14px;flex-shrink:0;text-align:center}
+.rowitem .gname{font-size:12.5px;font-weight:600;color:#1f2328;word-break:break-all}
+.rowitem .gtag{font-size:11px;color:#8b949e;margin-left:auto;white-space:nowrap;flex-shrink:0}
+.rowitem .cards{display:flex;gap:10px;padding:9px 11px;align-items:stretch}
+.rowitem.folded .cards{display:none}
+/* 卡片：照片在左、地址（文件名/文件夹/完整路径/勾选）在右，与 A 类同款 */
+.card{flex:1;min-width:0;display:flex;align-items:flex-start;gap:10px;
+  border:1px solid #e4e8ec;border-radius:8px;padding:8px;background:#fafbfc}
+.card.kp{border-color:#a7e0b4;background:#f4fcf6}
+.card.kp .box{border-color:#1f8833;border-width:3px;background:#f0fff4}
+.card.kp .role{background:#1f8833;color:#fff}
+.card.dp{border-color:#f3c0c4;background:#fff7f7}
+.card.dp .box{border-color:#cf222e;border-width:3px;background:#fff5f5}
+.card.dp .role{background:#cf222e;color:#fff}
+.card .box{width:120px;height:120px;border:2px solid #d8dee4;border-radius:8px;
+  overflow:hidden;background:#f0f2f4;position:relative;cursor:pointer;transition:.12s;flex-shrink:0}
+.card .box:hover{border-color:#0969da}
+.card .box img{width:100%;height:100%;object-fit:contain;display:block}
+.card .role{position:absolute;top:0;left:0;font-size:10.5px;padding:2px 6px;
+  border-radius:0 0 6px 0;font-weight:600}
+.card .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.card .cap{font-size:12px;color:#1f2328;font-weight:600;line-height:1.35;word-break:break-all}
+.card .dir{font-size:11px;color:#8b949e;word-break:break-all;line-height:1.3}
+/* 完整路径单独一行：等宽字体 + 可点击复制 */
+.card .fp{font-size:11px;color:#24292f;word-break:break-all;
   font-family:Consolas,"Courier New",monospace;background:#f6f8fa;
-  border:1px solid #d0d7de;border-radius:4px;padding:1px 5px;cursor:pointer;
-  line-height:1.35;margin-bottom:2px}
-.rowitem .fp:hover{background:#fff8e6;border-color:#f0c36d}
-.rowitem .fp.k{border-color:#1f8833;background:#f0fff4}
-.rowitem .fp.d{border-color:#cf222e;background:#fffbe9}
-.rowitem .p{flex:1;word-break:break-all;line-height:1.5;min-width:0}
-.rowitem .p a{color:#0969da;text-decoration:none;font-size:11px}
-.rowitem .p a:hover{text-decoration:underline}
-.rowitem input{cursor:pointer;width:15px;height:15px;margin:0;flex-shrink:0}
+  border:1px solid #d0d7de;border-radius:5px;padding:2px 6px;cursor:pointer;line-height:1.4;margin-top:2px}
+.card .fp:hover{background:#fff8e6;border-color:#f0c36d}
+.card.kp .fp{border-color:#1f8833;background:#f0fff4}
+.card.dp .fp{border-color:#cf222e;background:#fffbe9}
+.card .chk{display:flex;align-items:center;gap:5px;margin-top:4px;font-size:11.5px;
+  cursor:pointer;user-select:none;color:#57606a}
+.card .chk input{cursor:pointer;width:14px;height:14px;margin:0;flex-shrink:0}
+.card .links{font-size:11px;margin-top:2px}
+.card .links a{color:#0969da;text-decoration:none}
+.card .links a:hover{text-decoration:underline}
 .pg{display:flex;gap:6px;align-items:center;justify-content:center;
   margin:18px 0;flex-wrap:wrap}
 .pg button{border:1px solid #d0d7de;background:#fff;border-radius:6px;
@@ -127,6 +144,8 @@ h1{font-size:20px;margin:0 0 4px}
     <span class="btn gry" onclick="selAll(false)">取消全部</span>
     <span class="btn" onclick="copyList()">复制路径</span>
     <span class="btn" onclick="saveList()">导出清单 txt</span>
+    <span class="btn grn" onclick="foldAll(false)">展开全部组</span>
+    <span class="btn gry" onclick="foldAll(true)">收起全部组</span>
     <label class="stat">每页
       <select id="per" onchange="PER=+this.value;cur=0;draw()"
         style="border:1px solid #d0d7de;border-radius:5px;padding:3px 6px">
@@ -136,7 +155,7 @@ h1{font-size:20px;margin:0 0 4px}
         <option value="500">500</option>
       </select> 条
     </label>
-    <span class="stat">已选 <b id="selN">0</b> 个</span>
+    <span class="stat">已选 <b id="selN">0</b> 个 · 共 <b id="selSz">0</b></span>
   </div>
 </div>
 
@@ -218,19 +237,36 @@ function draw(){
     const [kl,kn,dl,dn,dir,kt,dt]=DATA[i];
     const p=decodePath(dl), s=SEL.has(p);
     H+='<div class="rowitem'+(s?' sel':'')+'" id="rb'+i+'">'
-      +'<input type="checkbox"'+(s?' checked':'')+' onclick="tog('+i+')">'
-      +'<div class="pair">'
-      +'<div class="one"><span class="lb k">保留</span>'
-      +'<img loading="lazy" src="'+thumbSrc(kt)+'" alt="" title="点击放大对比" onerror="this.style.visibility=\'hidden\'" onclick="viewB('+i+')">'
-      +'<div class="fn">'+esc(kn)+'</div></div>'
-      +'<div class="one"><span class="lb d">移出</span>'
-      +'<img loading="lazy" src="'+thumbSrc(dt)+'" alt="" title="点击放大对比" onerror="this.style.visibility=\'hidden\'" onclick="viewB('+i+')">'
-      +'<div class="fn">'+esc(dn)+'</div></div></div>'
-      // 完整路径单独成行、可点击复制：绿色=保留正本，红色=待移出，核对时直接用
-      +'<div class="p"><div class="fp k" title="点击复制保留正本的完整路径" onclick="copyOne(this)">'+esc(decodePath(kl))+'</div>'
-      +'<div class="fp d" title="点击复制移出文件的完整路径" onclick="copyOne(this)">'+esc(p)+'</div>'
-      +'<div>'+esc(dir)+'<br><a href="'+dl+'">打开移出的原图</a>'
-      +' · <a href="javascript:viewB('+i+')">放大对比</a></div></div></div>';
+      +'<div class="ghead" onclick="fold('+i+')">'
+      +'<span class="gtog" id="gt'+i+'">▼</span>'
+      +'<span class="gname" title="'+esc(kn)+'">'+esc(kn)+'</span>'
+      +'<span class="gtag">保留 vs 移出 · 点标题折叠</span>'
+      +'</div>'
+      +'<div class="cards">'
+      // 保留：照片在左、地址在右（与 A 类同款）
+      +'<div class="card kp">'
+      +'<div class="box" title="保留（点击放大对比）" onclick="viewB('+i+')">'
+      +'<img loading="lazy" src="'+thumbSrc(kt)+'" alt="" onerror="this.style.visibility=\'hidden\'">'
+      +'<span class="role">保留</span></div>'
+      +'<div class="info">'
+      +'<div class="cap">'+esc(kn)+'</div>'
+      +'<div class="dir" title="'+esc(dirOf(kl))+'">'+esc(dirOf(kl))+'</div>'
+      +'<div class="fp" title="点击复制保留正本的完整路径" onclick="copyOne(this)">'+esc(decodePath(kl))+'</div>'
+      +'</div></div>'
+      // 移出：照片在左、地址在右（与 A 类同款）
+      +'<div class="card dp">'
+      +'<div class="box" title="移出（点击放大对比）" onclick="viewB('+i+')">'
+      +'<img loading="lazy" src="'+thumbSrc(dt)+'" alt="" onerror="this.style.visibility=\'hidden\'">'
+      +'<span class="role">移出</span></div>'
+      +'<div class="info">'
+      +'<div class="cap">'+esc(dn)+'</div>'
+      +'<div class="dir" title="'+esc(dir)+'">'+esc(dir)+'</div>'
+      +'<div class="fp" title="点击复制移出文件的完整路径" onclick="copyOne(this)">'+esc(p)+'</div>'
+      +'<div class="chk" onclick="tog('+i+')"><input type="checkbox"'+(s?' checked':'')+'>移出（清理）</div>'
+      +'<div class="links"><a href="'+dl+'" target="_blank">打开移出的原图</a>'
+      +' · <a href="javascript:viewB('+i+')">放大对比</a></div>'
+      +'</div></div>'
+      +'</div></div>';
   }
   document.getElementById('list').innerHTML=H||'<div class="load">没有数据</div>';
   drawPg(); updateSel();
@@ -267,6 +303,25 @@ function tog(i){
     const cb=el.querySelector('input'); if(cb) cb.checked=SEL.has(p);}
   updateSel();
 }
+/* 点分组标题栏：折叠 / 展开 该组的卡片（只留标题栏，方便一页内多塞几组） */
+function fold(i){
+  const el=document.getElementById('rb'+i);
+  if(!el) return;
+  const folded=el.classList.toggle('folded');
+  const t=document.getElementById('gt'+i);
+  if(t) t.textContent=folded?'▶':'▼';
+}
+/* 一键展开 / 收起当前页所有分组：foldThem=true 收起（只留标题栏），false 展开 */
+function foldAll(foldThem){
+  const lo=cur*PER, hi=Math.min(lo+PER,DATA.length);
+  for(let i=lo;i<hi;i++){
+    const el=document.getElementById('rb'+i);
+    if(!el) continue;
+    el.classList.toggle('folded', foldThem);
+    const t=document.getElementById('gt'+i);
+    if(t) t.textContent=foldThem?'▶':'▼';
+  }
+}
 function selPage(on){
   for(let i=cur*PER;i<Math.min(cur*PER+PER,DATA.length);i++){
     const p=decodePath(DATA[i][2]);
@@ -280,7 +335,23 @@ function selAll(on){
   DATA.forEach(r=>{const p=decodePath(r[2]);if(on)SEL.add(p);else SEL.delete(p);});
   draw();
 }
-function updateSel(){document.getElementById('selN').textContent=SEL.size.toLocaleString();}
+function fmtBytes(b){
+  if(!b||b<0) return '0';
+  const u=['B','KB','MB','GB','TB']; let i=0; let v=b;
+  while(v>=1024&&i<u.length-1){v/=1024;i++;}
+  return (i===0?v:v.toFixed(v<10?2:1))+' '+u[i];
+}
+function updateSel(){
+  let n=SEL.size, tot=0;
+  for(let i=0;i<DATA.length;i++){
+    if(SEL.has(decodePath(DATA[i][2]))){
+      const s=(DATA[i]&&typeof DATA[i][7]==='number')?DATA[i][7]:0;
+      tot+=s;
+    }
+  }
+  document.getElementById('selN').textContent=n.toLocaleString();
+  document.getElementById('selSz').textContent=fmtBytes(tot);
+}
 function listText(){
   const L=['C类确认真重复处理清单   生成时间: '+new Date().toLocaleString('zh-CN'),'='.repeat(60)];
   // 建立「移出路径 → 配对的保留正本路径」映射，导出时成对输出，便于逐条核对
